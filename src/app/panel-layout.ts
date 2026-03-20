@@ -13,6 +13,12 @@ import {
   CryptoPanel,
   PredictionPanel,
   MonitorPanel,
+  BrandwatchFeedPanel,
+  BrandwatchQueriesPanel,
+  WeakSignalsPanel,
+  ThreatMatrixPanel,
+  MentionTrendsPanel,
+  RenaultChronologyScreen,
   EconomicPanel,
   EnergyComplexPanel,
   GdeltIntelPanel,
@@ -74,6 +80,7 @@ export interface PanelLayoutCallbacks {
 }
 
 export class PanelLayoutManager implements AppModule {
+  private static readonly RENAULT_VIEW_STORAGE_KEY = 'renault-view-mode';
   private ctx: AppContext;
   private callbacks: PanelLayoutCallbacks;
   private panelDragCleanupHandlers: Array<() => void> = [];
@@ -119,11 +126,13 @@ export class PanelLayoutManager implements AppModule {
     this.aviationCommandBar?.destroy();
     this.aviationCommandBar = null;
     this.ctx.panels['airline-intel']?.destroy();
+    this.ctx.renaultChronologyScreen = null;
 
     window.removeEventListener('resize', this.ensureCorrectZones);
   }
 
   renderLayout(): void {
+    const isRenaultVariant = SITE_VARIANT === 'renault';
     this.ctx.container.innerHTML = `
       ${this.ctx.isDesktopApp ? '<div class="tauri-titlebar" data-tauri-drag-region></div>' : ''}
       <div class="header">
@@ -132,6 +141,16 @@ export class PanelLayoutManager implements AppModule {
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
           </button>
           <div class="variant-switcher">${(() => {
+        if (isRenaultVariant) {
+          return `
+            <a href="#"
+               class="variant-option active"
+               data-variant="renault"
+               title="${t('header.renault')} ${t('common.currentVariant')}">
+              <span class="variant-icon">🚗</span>
+              <span class="variant-label">${t('header.renault')}</span>
+            </a>`;
+        }
         const local = this.ctx.isDesktopApp || location.hostname === 'localhost' || location.hostname === '127.0.0.1';
         const inIframe = window.self !== window.top;
         const vHref = (v: string, prod: string) => local || SITE_VARIANT === v ? '#' : prod;
@@ -173,30 +192,39 @@ export class PanelLayoutManager implements AppModule {
               <span class="variant-label">${t('header.commodity')}</span>
             </a>
             <span class="variant-divider"></span>
+            <a href="${vHref('renault', 'https://renault.worldmonitor.app')}"
+               class="variant-option ${SITE_VARIANT === 'renault' ? 'active' : ''}"
+               data-variant="renault"
+               ${vTarget('renault')}
+               title="${t('header.renault')}${SITE_VARIANT === 'renault' ? ` ${t('common.currentVariant')}` : ''}">
+              <span class="variant-icon">🚗</span>
+              <span class="variant-label">${t('header.renault')}</span>
+            </a>
+            <span class="variant-divider"></span>
             <a href="${vHref('happy', 'https://happy.worldmonitor.app')}"
                class="variant-option ${SITE_VARIANT === 'happy' ? 'active' : ''}"
                data-variant="happy"
                ${vTarget('happy')}
                title="Good News${SITE_VARIANT === 'happy' ? ` ${t('common.currentVariant')}` : ''}">
-              <span class="variant-icon">☀️</span>
-              <span class="variant-label">Good News</span>
-            </a>`;
+            <span class="variant-icon">☀️</span>
+            <span class="variant-label">Good News</span>
+          </a>`;
       })()}</div>
-          <span class="logo">MONITOR</span><span class="logo-mobile">World Monitor</span><span class="version">v${__APP_VERSION__}</span>${BETA_MODE ? '<span class="beta-badge">BETA</span>' : ''}
-          <a href="https://x.com/eliehabib" target="_blank" rel="noopener" class="credit-link">
+          <span class="logo">MONITOR</span><span class="logo-mobile">${isRenaultVariant ? 'Renault Monitor' : 'World Monitor'}</span>${isRenaultVariant ? '' : `<span class="version">v${__APP_VERSION__}</span>${BETA_MODE ? '<span class="beta-badge">BETA</span>' : ''}`}
+          ${isRenaultVariant ? '' : `<a href="https://x.com/eliehabib" target="_blank" rel="noopener" class="credit-link">
             <svg class="x-logo" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
             <span class="credit-text">@eliehabib</span>
-          </a>
-          <a href="https://github.com/koala73/worldmonitor" target="_blank" rel="noopener" class="github-link" title="${t('header.viewOnGitHub')}">
+          </a>`}
+          ${isRenaultVariant ? '' : `<a href="https://github.com/koala73/worldmonitor" target="_blank" rel="noopener" class="github-link" title="${t('header.viewOnGitHub')}">
             <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
-          </a>
+          </a>`}
           <button class="mobile-settings-btn" id="mobileSettingsBtn" title="${t('header.settings')}">
             <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
           </button>
-          <div class="status-indicator">
+          ${isRenaultVariant ? '' : `<div class="status-indicator">
             <span class="status-dot"></span>
             <span>${t('header.live')}</span>
-          </div>
+          </div>`}
           <div class="region-selector">
             <select id="regionSelect" class="region-select">
               <option value="global">${t('components.deckgl.views.global')}</option>
@@ -209,6 +237,10 @@ export class PanelLayoutManager implements AppModule {
               <option value="oceania">${t('components.deckgl.views.oceania')}</option>
             </select>
           </div>
+          ${isRenaultVariant ? `<div class="renault-view-toggle" id="renaultViewToggle">
+            <button class="renault-view-btn" data-view="dashboard">Dashboard</button>
+            <button class="renault-view-btn" data-view="wire">News Wire</button>
+          </div>` : ''}
           <button class="mobile-search-btn" id="mobileSearchBtn" aria-label="${t('header.search')}">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
           </button>
@@ -231,20 +263,23 @@ export class PanelLayoutManager implements AppModule {
       <div class="mobile-menu-overlay" id="mobileMenuOverlay"></div>
       <nav class="mobile-menu" id="mobileMenu">
         <div class="mobile-menu-header">
-          <span class="mobile-menu-title">WORLD MONITOR</span>
+          <span class="mobile-menu-title">${isRenaultVariant ? 'Renault Monitor' : 'WORLD MONITOR'}</span>
           <button class="mobile-menu-close" id="mobileMenuClose" aria-label="Close menu">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
           </button>
         </div>
         <div class="mobile-menu-divider"></div>
         ${(() => {
-        const variants = [
-          { key: 'full', icon: '🌍', label: t('header.world') },
-          { key: 'tech', icon: '💻', label: t('header.tech') },
-          { key: 'finance', icon: '📈', label: t('header.finance') },
-          { key: 'commodity', icon: '⛏️', label: t('header.commodity') },
-          { key: 'happy', icon: '☀️', label: 'Good News' },
-        ];
+        const variants = isRenaultVariant
+          ? [{ key: 'renault', icon: '🚗', label: t('header.renault') }]
+          : [
+            { key: 'full', icon: '🌍', label: t('header.world') },
+            { key: 'tech', icon: '💻', label: t('header.tech') },
+            { key: 'finance', icon: '📈', label: t('header.finance') },
+            { key: 'commodity', icon: '⛏️', label: t('header.commodity') },
+            { key: 'renault', icon: '🚗', label: t('header.renault') },
+            { key: 'happy', icon: '☀️', label: 'Good News' },
+          ];
         return variants.map(v =>
           `<button class="mobile-menu-item mobile-menu-variant ${v.key === SITE_VARIANT ? 'active' : ''}" data-variant="${v.key}">
             <span class="mobile-menu-item-icon">${v.icon}</span>
@@ -268,18 +303,18 @@ export class PanelLayoutManager implements AppModule {
           <span class="mobile-menu-item-icon">${getCurrentTheme() === 'dark' ? '☀️' : '🌙'}</span>
           <span class="mobile-menu-item-label">${getCurrentTheme() === 'dark' ? 'Light Mode' : 'Dark Mode'}</span>
         </button>
-        <a class="mobile-menu-item" href="https://x.com/eliehabib" target="_blank" rel="noopener">
+        ${isRenaultVariant ? '' : `<a class="mobile-menu-item" href="https://x.com/eliehabib" target="_blank" rel="noopener">
           <span class="mobile-menu-item-icon"><svg class="x-logo" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg></span>
           <span class="mobile-menu-item-label">@eliehabib</span>
-        </a>
-        <div class="mobile-menu-divider"></div>
+        </a>`}
+        ${isRenaultVariant ? '' : `<div class="mobile-menu-divider"></div>
         <div class="mobile-menu-footer-links">
           <a href="${this.ctx.isDesktopApp ? 'https://worldmonitor.app/pro' : 'https://www.worldmonitor.app/pro'}" target="_blank" rel="noopener">Pro</a>
           <a href="${this.ctx.isDesktopApp ? 'https://worldmonitor.app/blog/' : 'https://www.worldmonitor.app/blog/'}" target="_blank" rel="noopener">Blog</a>
           <a href="${this.ctx.isDesktopApp ? 'https://worldmonitor.app/docs' : 'https://www.worldmonitor.app/docs'}" target="_blank" rel="noopener">Docs</a>
           <a href="https://status.worldmonitor.app/" target="_blank" rel="noopener">Status</a>
         </div>
-        <div class="mobile-menu-version">v${__APP_VERSION__}</div>
+        <div class="mobile-menu-version">v${__APP_VERSION__}</div>`}
       </nav>
       <div class="region-sheet-backdrop" id="regionSheetBackdrop"></div>
       <div class="region-bottom-sheet" id="regionBottomSheet">
@@ -301,11 +336,11 @@ export class PanelLayoutManager implements AppModule {
         </button>`
       ).join('')}
       </div>
-      <div class="main-content">
+      <div class="main-content" id="mainContent">
         <div class="map-section" id="mapSection">
           <div class="panel-header">
             <div class="panel-header-left">
-              <span class="panel-title">${SITE_VARIANT === 'tech' ? t('panels.techMap') : SITE_VARIANT === 'happy' ? 'Good News Map' : t('panels.map')}</span>
+              <span class="panel-title">${SITE_VARIANT === 'tech' ? t('panels.techMap') : SITE_VARIANT === 'happy' ? 'Good News Map' : SITE_VARIANT === 'renault' ? 'Renault Crisis Map' : t('panels.map')}</span>
             </div>
             <span class="header-clock" id="headerClock" translate="no"></span>
             <div class="map-header-actions">
@@ -331,6 +366,7 @@ export class PanelLayoutManager implements AppModule {
         <div class="panels-grid" id="panelsGrid"></div>
         <button class="search-mobile-fab" id="searchMobileFab" aria-label="Search">\u{1F50D}</button>
       </div>
+      ${isRenaultVariant ? '<div class="renault-chronology-view renault-view-hidden" id="renaultChronologyView"></div>' : ''}
       <footer class="site-footer">
         <div class="site-footer-brand">
           <img src="/favico/favicon-32x32.png" alt="" width="28" height="28" class="site-footer-icon" />
@@ -353,10 +389,52 @@ export class PanelLayoutManager implements AppModule {
     `;
 
     this.createPanels();
+    if (isRenaultVariant) {
+      this.setupRenaultViewToggle();
+    }
 
     if (this.ctx.isMobile) {
       this.setupMobileMapToggle();
     }
+  }
+
+  private getRenaultViewMode(): 'dashboard' | 'wire' {
+    if (SITE_VARIANT !== 'renault') return 'dashboard';
+    const stored = loadFromStorage<string>(PanelLayoutManager.RENAULT_VIEW_STORAGE_KEY, 'dashboard');
+    return stored === 'wire' ? 'wire' : 'dashboard';
+  }
+
+  private applyRenaultViewMode(mode: 'dashboard' | 'wire'): void {
+    if (SITE_VARIANT !== 'renault') return;
+
+    const mainContent = document.getElementById('mainContent');
+    const chronologyView = document.getElementById('renaultChronologyView');
+    if (!mainContent || !chronologyView) return;
+
+    mainContent.classList.toggle('renault-view-hidden', mode !== 'dashboard');
+    chronologyView.classList.toggle('renault-view-hidden', mode !== 'wire');
+
+    document.querySelectorAll<HTMLButtonElement>('.renault-view-btn').forEach((button) => {
+      button.classList.toggle('active', button.dataset.view === mode);
+    });
+
+    saveToStorage(PanelLayoutManager.RENAULT_VIEW_STORAGE_KEY, mode);
+    if (mode === 'dashboard') {
+      window.dispatchEvent(new Event('resize'));
+    }
+  }
+
+  private setupRenaultViewToggle(): void {
+    if (SITE_VARIANT !== 'renault') return;
+
+    document.querySelectorAll<HTMLButtonElement>('.renault-view-btn').forEach((button) => {
+      button.addEventListener('click', () => {
+        const nextMode = button.dataset.view === 'wire' ? 'wire' : 'dashboard';
+        this.applyRenaultViewMode(nextMode);
+      });
+    });
+
+    this.applyRenaultViewMode(this.getRenaultViewMode());
   }
 
   private setupMobileMapToggle(): void {
@@ -509,6 +587,15 @@ export class PanelLayoutManager implements AppModule {
     this.ctx.map.initEscalationGetters();
     this.ctx.currentTimeRange = this.ctx.map.getTimeRange();
 
+    const handleBrandwatchMapFocus = (event: Event): void => {
+      const detail = (event as CustomEvent<{ lat?: number; lon?: number }>).detail;
+      if (detail?.lat == null || detail?.lon == null) return;
+      this.ctx.map?.setCenter(detail.lat, detail.lon, 5);
+      this.ctx.map?.flashLocation?.(detail.lat, detail.lon, 2500);
+    };
+    window.addEventListener('brandwatch-map-focus', handleBrandwatchMapFocus);
+    this.panelDragCleanupHandlers.push(() => window.removeEventListener('brandwatch-map-focus', handleBrandwatchMapFocus));
+
     this.createNewsPanel('politics', 'panels.politics');
     this.createNewsPanel('tech', 'panels.tech');
     this.createNewsPanel('finance', 'panels.finance');
@@ -538,6 +625,24 @@ export class PanelLayoutManager implements AppModule {
       saveToStorage(STORAGE_KEYS.monitors, monitors);
       this.callbacks.updateMonitorResults();
     });
+
+    this.createPanel('brandwatch-feed', () => new BrandwatchFeedPanel());
+    this.createPanel('weak-signals', () => new WeakSignalsPanel());
+    const brandwatchQueriesPanel = this.createPanel('brandwatch-queries', () => new BrandwatchQueriesPanel());
+    brandwatchQueriesPanel?.onChanged(() => {
+      this.callbacks.updateMonitorResults();
+    });
+    this.createPanel('threat-matrix', () => new ThreatMatrixPanel());
+    this.createPanel('mention-trends', () => new MentionTrendsPanel());
+
+    if (SITE_VARIANT === 'renault') {
+      const chronologyHost = document.getElementById('renaultChronologyView');
+      if (chronologyHost) {
+        const chronologyScreen = new RenaultChronologyScreen();
+        this.ctx.renaultChronologyScreen = chronologyScreen;
+        chronologyHost.appendChild(chronologyScreen.getElement());
+      }
+    }
 
     this.createPanel('commodities', () => new CommoditiesPanel());
     this.createPanel('energy-complex', () => new EnergyComplexPanel());

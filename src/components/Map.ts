@@ -44,6 +44,7 @@ import {
   FINANCIAL_CENTERS,
   CENTRAL_BANKS,
   COMMODITY_HUBS,
+  RENAULT_SITES,
 } from '@/config';
 import { pinWebcam, isPinned } from '@/services/webcams/pinned-store';
 import type { WebcamEntry, WebcamCluster } from '@/generated/client/worldmonitor/webcam/v1/service_client';
@@ -398,7 +399,18 @@ export class MapComponent {
     const happyLayers: (keyof MapLayers)[] = [
       'positiveEvents', 'kindness', 'happiness', 'speciesRecovery', 'renewableInstallations',
     ];
-    const layers = SITE_VARIANT === 'tech' ? techLayers : SITE_VARIANT === 'finance' ? financeLayers : SITE_VARIANT === 'happy' ? happyLayers : fullLayers;
+    const renaultLayers: (keyof MapLayers)[] = [
+      'renaultSites', 'weather', 'natural', 'outages', 'tradeRoutes',
+    ];
+    const layers = SITE_VARIANT === 'tech'
+      ? techLayers
+      : SITE_VARIANT === 'finance'
+        ? financeLayers
+        : SITE_VARIANT === 'happy'
+          ? happyLayers
+          : SITE_VARIANT === 'renault'
+            ? renaultLayers
+            : fullLayers;
     const layerLabelKeys: Partial<Record<keyof MapLayers, string>> = {
       hotspots: 'components.deckgl.layers.intelHotspots',
       conflicts: 'components.deckgl.layers.conflictZones',
@@ -414,6 +426,7 @@ export class MapComponent {
       flights: 'components.deckgl.layers.flightDelays',
       natural: 'components.deckgl.layers.naturalEvents',
       weather: 'components.deckgl.layers.weatherAlerts',
+      tradeRoutes: 'components.deckgl.layers.tradeRoutes',
       economic: 'components.deckgl.layers.economicCenters',
       waterways: 'components.deckgl.layers.strategicWaterways',
       startupHubs: 'components.deckgl.layers.startupHubs',
@@ -421,6 +434,7 @@ export class MapComponent {
       accelerators: 'components.deckgl.layers.accelerators',
       techHQs: 'components.deckgl.layers.techHQs',
       techEvents: 'components.deckgl.layers.techEvents',
+      renaultSites: 'components.deckgl.layers.renaultSites',
       stockExchanges: 'components.deckgl.layers.stockExchanges',
       financialCenters: 'components.deckgl.layers.financialCenters',
       centralBanks: 'components.deckgl.layers.centralBanks',
@@ -562,6 +576,24 @@ export class MapComponent {
       </div>
     `;
 
+    const renaultHelpContent = `
+      ${helpHeader}
+      <div class="layer-help-content">
+        ${helpSection('financeCore', [
+      helpItem(label('renaultSites'), 'financeCenters'),
+      helpItem(label('tradeRoutes'), 'tradeRoutes'),
+      helpItem(label('internetOutages'), 'financeOutages'),
+      helpItem(label('weatherAlerts'), 'weatherAlertsMarket'),
+      helpItem(label('naturalEvents'), 'naturalEventsMacro'),
+    ])}
+        ${helpSection('infrastructureRisk', [
+      helpItem(label('underseaCables'), 'financeCables'),
+      helpItem(label('strategicWaterways'), 'macroWaterways'),
+      helpItem(staticLabel('countries'), 'countriesOverlay'),
+    ])}
+      </div>
+    `;
+
     const fullHelpContent = `
       ${helpHeader}
       <div class="layer-help-content">
@@ -614,6 +646,8 @@ export class MapComponent {
       ? techHelpContent
       : SITE_VARIANT === 'finance'
         ? financeHelpContent
+        : SITE_VARIANT === 'renault'
+          ? renaultHelpContent
         : fullHelpContent;
 
     popup.querySelector('.layer-help-close')?.addEventListener('click', () => popup.remove());
@@ -664,6 +698,12 @@ export class MapComponent {
       // Happy variant legend — natural events only
       legend.innerHTML = `
         <div class="map-legend-item"><span class="map-legend-icon earthquake">●</span>${escapeHtml(t('components.deckgl.layers.naturalEvents').toUpperCase())}</div>
+      `;
+    } else if (SITE_VARIANT === 'renault') {
+      legend.innerHTML = `
+        <div class="map-legend-item"><span class="legend-dot" style="background:#ef4444"></span>FACTORIES</div>
+        <div class="map-legend-item"><span class="legend-dot" style="background:#f97316"></span>LOGISTICS</div>
+        <div class="map-legend-item"><span class="map-legend-icon earthquake">●</span>WEATHER RISK</div>
       `;
     } else {
       // Geopolitical variant legend
@@ -2089,6 +2129,38 @@ export class MapComponent {
           }
         });
 
+        this.overlays.appendChild(div);
+      });
+    }
+
+    if (this.state.layers.renaultSites) {
+      RENAULT_SITES.forEach((site) => {
+        const pos = projection([site.lon, site.lat]);
+        if (!pos) return;
+
+        const div = document.createElement('div');
+        div.className = 'renault-site-marker';
+        div.style.left = `${pos[0]}px`;
+        div.style.top = `${pos[1]}px`;
+        div.style.position = 'absolute';
+        div.style.transform = 'translate(-50%, -50%)';
+
+        const icon = document.createElement('div');
+        icon.textContent = site.type === 'logistics' ? '⬣' : '●';
+        icon.style.color = site.type === 'logistics' ? '#f97316' : '#ef4444';
+        icon.style.fontSize = site.type === 'logistics' ? '16px' : '14px';
+        icon.style.textShadow = '0 0 8px rgba(0,0,0,0.45)';
+        div.appendChild(icon);
+
+        if (this.state.zoom >= 3.5) {
+          const label = document.createElement('div');
+          label.className = 'tech-hq-label';
+          label.style.whiteSpace = 'nowrap';
+          label.textContent = site.name;
+          div.appendChild(label);
+        }
+
+        div.title = `${site.name} · ${site.city}, ${site.country}`;
         this.overlays.appendChild(div);
       });
     }

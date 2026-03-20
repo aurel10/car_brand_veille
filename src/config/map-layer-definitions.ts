@@ -3,7 +3,7 @@ import type { MapLayers } from '@/types';
 import { isDesktopRuntime } from '@/services/runtime';
 
 export type MapRenderer = 'flat' | 'globe';
-export type MapVariant = 'full' | 'tech' | 'finance' | 'happy' | 'commodity';
+export type MapVariant = 'full' | 'tech' | 'finance' | 'happy' | 'commodity' | 'renault';
 
 const _desktop = isDesktopRuntime();
 
@@ -65,6 +65,7 @@ export const LAYER_REGISTRY: Record<keyof MapLayers, LayerDefinition> = {
   accelerators:             def('accelerators',             '&#9889;',   'accelerators',             'Accelerators'),
   cloudRegions:             def('cloudRegions',             '&#9729;',   'cloudRegions',             'Cloud Regions'),
   techEvents:               def('techEvents',               '&#128197;', 'techEvents',               'Tech Events'),
+  renaultSites:             def('renaultSites',             '&#127981;', 'renaultSites',             'Renault Sites'),
   stockExchanges:           def('stockExchanges',           '&#127963;', 'stockExchanges',           'Stock Exchanges'),
   financialCenters:         def('financialCenters',         '&#128176;', 'financialCenters',         'Financial Centers'),
   centralBanks:             def('centralBanks',             '&#127974;', 'centralBanks',             'Central Banks'),
@@ -107,6 +108,10 @@ const VARIANT_LAYER_ORDER: Record<MapVariant, Array<keyof MapLayers>> = {
   happy: [
     'positiveEvents', 'kindness', 'happiness',
     'speciesRecovery', 'renewableInstallations',
+  ],
+  renault: [
+    'renaultSites', 'tradeRoutes', 'weather', 'natural',
+    'outages', 'cables', 'waterways', 'dayNight', 'weatherRadar',
   ],
   commodity: [
     'miningSites', 'processingPlants', 'commodityPorts', 'commodityHubs',
@@ -200,6 +205,16 @@ export const LAYER_SYNONYMS: Record<string, Array<keyof MapLayers>> = {
   ai: ['datacenters'],
   startup: ['startupHubs', 'accelerators'],
   tech: ['techHQs', 'techEvents', 'startupHubs', 'cloudRegions', 'datacenters'],
+  renault: ['renaultSites'],
+  factory: ['renaultSites'],
+  plant: ['renaultSites'],
+  'factory strike': ['renaultSites'],
+  strike: ['renaultSites', 'protests'],
+  supplier: ['renaultSites', 'tradeRoutes'],
+  logistics: ['renaultSites', 'tradeRoutes', 'waterways'],
+  automotive: ['renaultSites'],
+  dacia: ['renaultSites'],
+  alpine: ['renaultSites'],
   gps: ['gpsJamming'],
   jamming: ['gpsJamming'],
   mineral: ['minerals', 'miningSites'],

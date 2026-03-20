@@ -123,6 +123,7 @@ const layers = {
   centralBanks: false,
   commodityHubs: false,
   gulfInvestments: false,
+  renaultSites: false,
   positiveEvents: false,
   kindness: false,
   happiness: false,

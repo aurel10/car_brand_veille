@@ -130,6 +130,13 @@ export {
   COMMODITY_PORTS,
 } from './commodity-geo';
 
+export {
+  RENAULT_TRACKED_ENTITIES,
+  RENAULT_SITES,
+  RENAULT_THREAT_FIELDS,
+  RENAULT_QUERY_TEMPLATES,
+} from './renault-watch';
+
 // COMMODITY_MINERS: 30+ mining company HQs — not yet rendered on map.
 // Uncomment when a miners layer is added to DeckGLMap.ts.
 // export { COMMODITY_MINERS, type CommodityMiner } from './commodity-miners';

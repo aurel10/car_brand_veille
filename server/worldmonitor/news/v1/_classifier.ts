@@ -3,7 +3,8 @@ export type ThreatLevel = 'critical' | 'high' | 'medium' | 'low' | 'info';
 export type EventCategory =
   | 'conflict' | 'protest' | 'disaster' | 'diplomatic' | 'economic'
   | 'terrorism' | 'cyber' | 'health' | 'environmental' | 'military'
-  | 'crime' | 'infrastructure' | 'tech' | 'general';
+  | 'crime' | 'infrastructure' | 'tech' | 'general'
+  | 'labor' | 'industrial' | 'product' | 'reputation' | 'regulatory' | 'supply-chain';
 
 export interface ClassificationResult {
   level: ThreatLevel;
@@ -167,6 +168,62 @@ const TECH_LOW_KEYWORDS: KeywordMap = {
   'open source': 'tech',
 };
 
+const RENAULT_CRITICAL_KEYWORDS: KeywordMap = {
+  'stop-sale': 'regulatory',
+  'stop sale': 'regulatory',
+  'battery fire': 'product',
+  'worker fatality': 'industrial',
+  'fatal accident': 'industrial',
+  'ransomware': 'cyber',
+  'data leak': 'cyber',
+  'antitrust': 'regulatory',
+};
+
+const RENAULT_HIGH_KEYWORDS: KeywordMap = {
+  'strike': 'labor',
+  'walkout': 'labor',
+  'union action': 'labor',
+  'factory fire': 'industrial',
+  'plant outage': 'industrial',
+  'supplier disruption': 'supply-chain',
+  'supplier bankruptcy': 'supply-chain',
+  'chip shortage': 'supply-chain',
+  'battery shortage': 'supply-chain',
+  'recall': 'product',
+  'defect': 'product',
+  'homologation': 'regulatory',
+  'emissions issue': 'regulatory',
+  'ceo scandal': 'reputation',
+  'whistleblower': 'reputation',
+  'boycott': 'reputation',
+};
+
+const RENAULT_MEDIUM_KEYWORDS: KeywordMap = {
+  'plant': 'industrial',
+  'factory': 'industrial',
+  'logistics': 'supply-chain',
+  'port congestion': 'supply-chain',
+  'dealer backlog': 'reputation',
+  'customer outrage': 'reputation',
+  'governance': 'reputation',
+  'board': 'reputation',
+  'probe': 'regulatory',
+  'tariff': 'regulatory',
+  'subsidy': 'regulatory',
+  'deepfake': 'cyber',
+  'privacy': 'cyber',
+};
+
+const RENAULT_LOW_KEYWORDS: KeywordMap = {
+  'renault': 'reputation',
+  'dacia': 'reputation',
+  'alpine': 'reputation',
+  'mobilize': 'reputation',
+  'ampere': 'industrial',
+  'horse': 'supply-chain',
+  'supplier': 'supply-chain',
+};
+
 const EXCLUSIONS = [
   'protein', 'couples', 'relationship', 'dating', 'diet', 'fitness',
   'recipe', 'cooking', 'shopping', 'fashion', 'celebrity', 'movie',
@@ -212,6 +269,15 @@ export function classifyByKeyword(title: string, variant?: string): Classificati
   }
 
   const isTech = variant === 'tech';
+  const isRenault = variant === 'renault';
+
+  if (isRenault) {
+    let match = matchKeywords(lower, RENAULT_CRITICAL_KEYWORDS);
+    if (match) return { level: 'critical', category: match.category, confidence: 0.88, source: 'keyword' };
+
+    match = matchKeywords(lower, RENAULT_HIGH_KEYWORDS);
+    if (match) return { level: 'high', category: match.category, confidence: 0.78, source: 'keyword' };
+  }
 
   let match = matchKeywords(lower, CRITICAL_KEYWORDS);
   if (match) return { level: 'critical', category: match.category, confidence: 0.9, source: 'keyword' };
@@ -227,6 +293,11 @@ export function classifyByKeyword(title: string, variant?: string): Classificati
   match = matchKeywords(lower, MEDIUM_KEYWORDS);
   if (match) return { level: 'medium', category: match.category, confidence: 0.7, source: 'keyword' };
 
+  if (isRenault) {
+    match = matchKeywords(lower, RENAULT_MEDIUM_KEYWORDS);
+    if (match) return { level: 'medium', category: match.category, confidence: 0.66, source: 'keyword' };
+  }
+
   if (isTech) {
     match = matchKeywords(lower, TECH_MEDIUM_KEYWORDS);
     if (match) return { level: 'medium', category: match.category, confidence: 0.65, source: 'keyword' };
@@ -234,6 +305,11 @@ export function classifyByKeyword(title: string, variant?: string): Classificati
 
   match = matchKeywords(lower, LOW_KEYWORDS);
   if (match) return { level: 'low', category: match.category, confidence: 0.6, source: 'keyword' };
+
+  if (isRenault) {
+    match = matchKeywords(lower, RENAULT_LOW_KEYWORDS);
+    if (match) return { level: 'low', category: match.category, confidence: 0.55, source: 'keyword' };
+  }
 
   if (isTech) {
     match = matchKeywords(lower, TECH_LOW_KEYWORDS);

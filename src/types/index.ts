@@ -80,7 +80,8 @@ export type ThreatLevel = 'critical' | 'high' | 'medium' | 'low' | 'info';
 export type EventCategory =
   | 'conflict' | 'protest' | 'disaster' | 'diplomatic' | 'economic'
   | 'terrorism' | 'cyber' | 'health' | 'environmental' | 'military'
-  | 'crime' | 'infrastructure' | 'tech' | 'general';
+  | 'crime' | 'infrastructure' | 'tech' | 'general'
+  | 'labor' | 'industrial' | 'product' | 'reputation' | 'regulatory' | 'supply-chain';
 
 export interface ThreatClassification {
   level: ThreatLevel;
@@ -95,6 +96,7 @@ export interface NewsItem {
   link: string;
   pubDate: Date;
   isAlert: boolean;
+  searchText?: string;
   monitorColor?: string;
   tier?: number;
   threat?: ThreatClassification;
@@ -563,6 +565,126 @@ export interface Monitor {
   lon?: number;
 }
 
+export type TrackedEntityType = 'brand' | 'executive' | 'factory' | 'supplier' | 'partner';
+
+export interface TrackedEntity {
+  id: string;
+  type: TrackedEntityType;
+  name: string;
+  aliases: string[];
+  keywords?: string[];
+  brand?: string;
+  city?: string;
+  country?: string;
+  lat?: number;
+  lon?: number;
+  siteType?: 'hq' | 'factory' | 'engineering' | 'logistics' | 'supplier-cluster';
+  description?: string;
+}
+
+export type ThreatFieldCategory =
+  | 'labor'
+  | 'industrial'
+  | 'product'
+  | 'reputation'
+  | 'regulatory'
+  | 'cyber'
+  | 'supply-chain'
+  | 'leadership'
+  | 'natural'
+  | 'geopolitical';
+
+export interface ThreatField {
+  id: string;
+  label: string;
+  category: ThreatFieldCategory;
+  keywords: string[];
+  severity?: ThreatLevel;
+  description?: string;
+}
+
+export interface BrandwatchQuery {
+  id: string;
+  name: string;
+  query: string;
+  mode?: 'boolean' | 'sql';
+  enabled: boolean;
+  color: string;
+  description?: string;
+  templateId?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface BrandwatchTemplate {
+  id: string;
+  name: string;
+  description: string;
+  query: string;
+  color: string;
+}
+
+export type BrandwatchQueryField = 'text' | 'theme' | 'org' | 'person' | 'location';
+
+export type BooleanQueryNode =
+  | { type: 'term'; value: string; field?: BrandwatchQueryField }
+  | { type: 'not'; child: BooleanQueryNode }
+  | { type: 'and' | 'or'; left: BooleanQueryNode; right: BooleanQueryNode };
+
+export interface BrandwatchCompilation {
+  normalizedQuery: string;
+  bigQueryWhere: string;
+  bigQuerySql: string;
+  bigQueryDocsSql?: string;
+  referencedFields: BrandwatchQueryField[];
+  terms: string[];
+}
+
+export interface BrandwatchAlert {
+  id: string;
+  subject: string;
+  summary: string;
+  severity: ThreatLevel;
+  theme: ThreatFieldCategory | EventCategory;
+  entityIds: string[];
+  queryIds: string[];
+  matchCount: number;
+  items: NewsItem[];
+  primaryEntityId?: string;
+  primaryThreatId?: string;
+  lat?: number;
+  lon?: number;
+}
+
+export interface EntityThreatMatrixRow {
+  entityId: string;
+  entityName: string;
+  entityType: TrackedEntityType;
+  counts: Record<string, number>;
+  totalMentions: number;
+  hotThreatIds: string[];
+}
+
+export interface MentionTrendPoint {
+  bucket: string;
+  count: number;
+  entityId?: string;
+  queryId?: string;
+  threatId?: string;
+}
+
+export interface RenaultSite {
+  id: string;
+  entityId: string;
+  name: string;
+  type: 'factory' | 'hq' | 'engineering' | 'logistics';
+  city: string;
+  country: string;
+  lat: number;
+  lon: number;
+  description?: string;
+}
+
 export interface PanelConfig {
   name: string;
   enabled: boolean;
@@ -604,6 +726,7 @@ export interface MapLayers {
   accelerators: boolean;
   techHQs: boolean;
   techEvents: boolean;
+  renaultSites: boolean;
   // Finance variant layers
   stockExchanges: boolean;
   financialCenters: boolean;
@@ -1266,7 +1389,7 @@ export interface HeadlineWithUrl {
 
 export interface EntityMention {
   entityId: string;
-  entityType: 'country' | 'company' | 'index' | 'commodity' | 'crypto' | 'sector';
+  entityType: 'country' | 'company' | 'index' | 'commodity' | 'crypto' | 'sector' | TrackedEntityType;
   displayName: string;
   mentionCount: number;
   avgConfidence: number;
@@ -1277,7 +1400,7 @@ export interface EntityMention {
 export interface FocalPoint {
   id: string;
   entityId: string;
-  entityType: 'country' | 'company' | 'index' | 'commodity' | 'crypto' | 'sector';
+  entityType: 'country' | 'company' | 'index' | 'commodity' | 'crypto' | 'sector' | TrackedEntityType;
   displayName: string;
 
   // News dimension

@@ -33,12 +33,11 @@ console.log(`[Relay] Heap limit: ${(_heapStats.heap_size_limit / 1024 / 1024).to
 
 const AISSTREAM_URL = 'wss://stream.aisstream.io/v0/stream';
 const API_KEY = process.env.AISSTREAM_API_KEY || process.env.VITE_AISSTREAM_API_KEY;
+const AISSTREAM_ENABLED = !!API_KEY;
 const PORT = process.env.PORT || 3004;
 
-if (!API_KEY) {
-  console.error('[Relay] Error: AISSTREAM_API_KEY environment variable not set');
-  console.error('[Relay] Get a free key at https://aisstream.io');
-  process.exit(1);
+if (!AISSTREAM_ENABLED) {
+  console.warn('[Relay] AISSTREAM_API_KEY not set — AIS relay features disabled, other relay routes remain available');
 }
 
 const MAX_WS_CLIENTS = 10; // Cap WS clients — app uses HTTP snapshots, not WS
@@ -104,6 +103,21 @@ const OREF_LOCAL_FILE = (() => {
 })();
 const RELAY_OREF_RATE_LIMIT_MAX = Number.isFinite(Number(process.env.RELAY_OREF_RATE_LIMIT_MAX))
   ? Number(process.env.RELAY_OREF_RATE_LIMIT_MAX) : 600;
+const BIGQUERY_SCOPE = 'https://www.googleapis.com/auth/bigquery';
+const BIGQUERY_TOKEN_AUDIENCE = 'https://oauth2.googleapis.com/token';
+const BIGQUERY_LOCATION = process.env.BIGQUERY_LOCATION || 'US';
+const BIGQUERY_TIMEOUT_MS = Math.max(1_000, Number(process.env.BIGQUERY_TIMEOUT_MS || 20_000));
+const BIGQUERY_MAX_RESULTS = Math.max(1, Math.min(1_000, Number(process.env.BIGQUERY_MAX_RESULTS || 180)));
+const BIGQUERY_CACHE_TTL_MS = Math.max(10_000, Number(process.env.BIGQUERY_CACHE_TTL_MS || 300_000));
+const BIGQUERY_MAX_CACHE_ENTRIES = Math.max(8, Number(process.env.BIGQUERY_MAX_CACHE_ENTRIES || 64));
+const BIGQUERY_MAX_BYTES_BILLED = process.env.BIGQUERY_MAX_BYTES_BILLED || '';
+
+let bigQueryServiceAccountCache = null;
+let bigQueryAccessToken = '';
+let bigQueryAccessTokenExpiry = 0;
+let bigQueryAccessTokenPromise = null;
+const bigQueryResultCache = new Map();
+let aisDisabledLogged = false;
 
 if (IS_PRODUCTION_RELAY && !RELAY_SHARED_SECRET && !ALLOW_UNAUTHENTICATED_RELAY) {
   console.error('[Relay] Error: RELAY_SHARED_SECRET is required in production');
@@ -4402,6 +4416,7 @@ function getRouteGroup(pathname) {
   if (pathname.startsWith('/ais/snapshot')) return 'snapshot';
   if (pathname.startsWith('/worldbank')) return 'worldbank';
   if (pathname.startsWith('/polymarket')) return 'polymarket';
+  if (pathname.startsWith('/brandwatch')) return 'brandwatch';
   if (pathname.startsWith('/ucdp-events')) return 'ucdp-events';
   if (pathname.startsWith('/oref')) return 'oref';
   if (pathname === '/notam') return 'notam';
@@ -4439,6 +4454,393 @@ function consumeRateLimit(req, pathname, isPublic = false) {
     remaining: Math.max(0, maxRequests - existing.count),
     resetInMs: Math.max(0, existing.resetAt - now),
   };
+}
+
+function base64UrlEncode(input) {
+  return Buffer.from(input)
+    .toString('base64')
+    .replace(/\+/g, '-')
+    .replace(/\//g, '_')
+    .replace(/=+$/g, '');
+}
+
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function parseJsonIfPresent(raw) {
+  if (!raw) return null;
+  try {
+    return JSON.parse(raw);
+  } catch {
+    return null;
+  }
+}
+
+function loadBigQueryServiceAccount() {
+  if (bigQueryServiceAccountCache) return bigQueryServiceAccountCache;
+
+  let parsed = null;
+  if (process.env.BIGQUERY_SERVICE_ACCOUNT_JSON) {
+    parsed = parseJsonIfPresent(process.env.BIGQUERY_SERVICE_ACCOUNT_JSON);
+  } else if (process.env.BIGQUERY_SERVICE_ACCOUNT_BASE64) {
+    try {
+      parsed = parseJsonIfPresent(Buffer.from(process.env.BIGQUERY_SERVICE_ACCOUNT_BASE64, 'base64').toString('utf8'));
+    } catch {
+      parsed = null;
+    }
+  } else if (process.env.GOOGLE_APPLICATION_CREDENTIALS) {
+    try {
+      parsed = parseJsonIfPresent(readFileSync(process.env.GOOGLE_APPLICATION_CREDENTIALS, 'utf8'));
+    } catch {
+      parsed = null;
+    }
+  }
+
+  if (
+    parsed &&
+    typeof parsed.client_email === 'string' &&
+    typeof parsed.private_key === 'string' &&
+    typeof parsed.project_id === 'string'
+  ) {
+    bigQueryServiceAccountCache = parsed;
+    return parsed;
+  }
+
+  return null;
+}
+
+function getBigQueryProjectId(serviceAccount) {
+  return process.env.BIGQUERY_PROJECT_ID || serviceAccount?.project_id || '';
+}
+
+function getBigQueryStatus() {
+  const serviceAccount = loadBigQueryServiceAccount();
+  return {
+    configured: !!serviceAccount,
+    projectId: getBigQueryProjectId(serviceAccount) || null,
+    credentialPath: process.env.GOOGLE_APPLICATION_CREDENTIALS || null,
+    location: BIGQUERY_LOCATION,
+  };
+}
+
+function signJwtAssertion(serviceAccount) {
+  const now = Math.floor(Date.now() / 1000);
+  const header = { alg: 'RS256', typ: 'JWT' };
+  const claims = {
+    iss: serviceAccount.client_email,
+    sub: serviceAccount.client_email,
+    scope: BIGQUERY_SCOPE,
+    aud: BIGQUERY_TOKEN_AUDIENCE,
+    iat: now,
+    exp: now + 3600,
+  };
+  const encodedHeader = base64UrlEncode(JSON.stringify(header));
+  const encodedClaims = base64UrlEncode(JSON.stringify(claims));
+  const unsigned = `${encodedHeader}.${encodedClaims}`;
+  const signature = crypto.createSign('RSA-SHA256').update(unsigned).sign(serviceAccount.private_key, 'base64')
+    .replace(/\+/g, '-')
+    .replace(/\//g, '_')
+    .replace(/=+$/g, '');
+  return `${unsigned}.${signature}`;
+}
+
+function httpsJsonRequest(urlString, options = {}) {
+  const {
+    method = 'GET',
+    headers = {},
+    body = null,
+    timeoutMs = 20_000,
+  } = options;
+
+  return new Promise((resolve, reject) => {
+    const request = https.request(urlString, {
+      method,
+      headers,
+      agent: httpsKeepAliveAgent,
+      timeout: timeoutMs,
+    }, (response) => {
+      let raw = '';
+      response.setEncoding('utf8');
+      response.on('data', (chunk) => {
+        raw += chunk;
+      });
+      response.on('end', () => {
+        const parsed = parseJsonIfPresent(raw);
+        if (response.statusCode >= 200 && response.statusCode < 300) {
+          resolve(parsed ?? {});
+          return;
+        }
+        const error = new Error(
+          parsed?.error?.message
+          || parsed?.error_description
+          || raw
+          || `HTTP ${response.statusCode}`
+        );
+        error.statusCode = response.statusCode;
+        error.payload = parsed;
+        reject(error);
+      });
+    });
+
+    request.on('error', reject);
+    request.on('timeout', () => {
+      request.destroy(new Error('BigQuery request timeout'));
+    });
+
+    if (body) {
+      request.write(body);
+    }
+    request.end();
+  });
+}
+
+async function getBigQueryAccessToken() {
+  const now = Date.now();
+  if (bigQueryAccessToken && now < bigQueryAccessTokenExpiry - 60_000) {
+    return bigQueryAccessToken;
+  }
+  if (bigQueryAccessTokenPromise) {
+    return bigQueryAccessTokenPromise;
+  }
+
+  bigQueryAccessTokenPromise = (async () => {
+    const serviceAccount = loadBigQueryServiceAccount();
+    if (!serviceAccount) {
+      throw new Error('BigQuery service account is not configured');
+    }
+
+    const assertion = signJwtAssertion(serviceAccount);
+    const body = new URLSearchParams({
+      grant_type: 'urn:ietf:params:oauth:grant-type:jwt-bearer',
+      assertion,
+    }).toString();
+
+    const tokenResponse = await httpsJsonRequest(BIGQUERY_TOKEN_AUDIENCE, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+        'Content-Length': String(Buffer.byteLength(body)),
+      },
+      body,
+      timeoutMs: BIGQUERY_TIMEOUT_MS,
+    });
+
+    const accessToken = String(tokenResponse.access_token || '');
+    const expiresIn = Number(tokenResponse.expires_in || 3600);
+    if (!accessToken) {
+      throw new Error('BigQuery OAuth token response was missing access_token');
+    }
+    bigQueryAccessToken = accessToken;
+    bigQueryAccessTokenExpiry = Date.now() + Math.max(60, expiresIn) * 1000;
+    return bigQueryAccessToken;
+  })();
+
+  try {
+    return await bigQueryAccessTokenPromise;
+  } finally {
+    bigQueryAccessTokenPromise = null;
+  }
+}
+
+function simplifyBigQueryValue(value) {
+  if (value == null) return null;
+  if (Array.isArray(value)) return value.map((item) => simplifyBigQueryValue(item?.v ?? item));
+  if (typeof value === 'object') {
+    if (Array.isArray(value.f)) {
+      return value.f.map((item) => simplifyBigQueryValue(item?.v));
+    }
+    return value;
+  }
+  return value;
+}
+
+function mapBigQueryRows(fields, rows) {
+  if (!Array.isArray(fields) || !Array.isArray(rows)) return [];
+  return rows.map((row) => {
+    const mapped = {};
+    fields.forEach((field, index) => {
+      mapped[field.name] = simplifyBigQueryValue(row?.f?.[index]?.v);
+    });
+    return mapped;
+  });
+}
+
+function validateBrandwatchSql(sql) {
+  const trimmed = String(sql || '').trim();
+  if (!trimmed) {
+    throw new Error('bigQuerySql is required');
+  }
+  if (!/^\s*(WITH\b[\s\S]+?\)\s*)?SELECT\b/i.test(trimmed)) {
+    throw new Error('Only read-only SELECT queries are allowed');
+  }
+  if (trimmed.includes(';')) {
+    throw new Error('Multiple SQL statements are not allowed');
+  }
+  if (!/FROM\s+`gdelt-bq\.gdeltv2\.gkg_partitioned`/i.test(trimmed)) {
+    throw new Error('Only gdelt-bq.gdeltv2.gkg_partitioned queries are allowed');
+  }
+  return trimmed;
+}
+
+function pruneBigQueryCache() {
+  const now = Date.now();
+  for (const [key, entry] of bigQueryResultCache.entries()) {
+    if (now - entry.timestamp > BIGQUERY_CACHE_TTL_MS) {
+      bigQueryResultCache.delete(key);
+    }
+  }
+  while (bigQueryResultCache.size > BIGQUERY_MAX_CACHE_ENTRIES) {
+    const oldestKey = bigQueryResultCache.keys().next().value;
+    if (!oldestKey) break;
+    bigQueryResultCache.delete(oldestKey);
+  }
+}
+
+async function executeBrandwatchBigQuery(sql, options = {}) {
+  const validatedSql = validateBrandwatchSql(sql);
+  const serviceAccount = loadBigQueryServiceAccount();
+  if (!serviceAccount) {
+    throw new Error('BigQuery credentials are not configured');
+  }
+  const projectId = getBigQueryProjectId(serviceAccount);
+  if (!projectId) {
+    throw new Error('BigQuery project_id is not configured');
+  }
+
+  const location = String(options.location || BIGQUERY_LOCATION || 'US');
+  const timeoutMs = Math.max(1_000, Number(options.timeoutMs || BIGQUERY_TIMEOUT_MS));
+  const maxResults = Math.max(1, Math.min(1_000, Number(options.maxResults || BIGQUERY_MAX_RESULTS)));
+  const cacheKey = `${projectId}::${location}::${validatedSql}`;
+  const cached = bigQueryResultCache.get(cacheKey);
+  if (cached && Date.now() - cached.timestamp < BIGQUERY_CACHE_TTL_MS) {
+    return {
+      ...cached.payload,
+      cacheHit: true,
+    };
+  }
+
+  const accessToken = await getBigQueryAccessToken();
+  const payload = {
+    query: validatedSql,
+    useLegacySql: false,
+    location,
+    timeoutMs,
+    maxResults,
+    ...(BIGQUERY_MAX_BYTES_BILLED ? { maximumBytesBilled: BIGQUERY_MAX_BYTES_BILLED } : {}),
+  };
+
+  let queryResult = await httpsJsonRequest(
+    `https://bigquery.googleapis.com/bigquery/v2/projects/${encodeURIComponent(projectId)}/queries`,
+    {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${accessToken}`,
+      },
+      body: JSON.stringify(payload),
+      timeoutMs,
+    },
+  );
+
+  const jobId = queryResult?.jobReference?.jobId;
+  if (jobId && queryResult?.jobComplete === false) {
+    for (let attempt = 0; attempt < 5; attempt += 1) {
+      await sleep(500 + attempt * 500);
+      queryResult = await httpsJsonRequest(
+        `https://bigquery.googleapis.com/bigquery/v2/projects/${encodeURIComponent(projectId)}/queries/${encodeURIComponent(jobId)}?location=${encodeURIComponent(location)}&maxResults=${encodeURIComponent(maxResults)}`,
+        {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${accessToken}`,
+          },
+          timeoutMs,
+        },
+      );
+      if (queryResult?.jobComplete) break;
+    }
+  }
+
+  const rows = mapBigQueryRows(queryResult?.schema?.fields, queryResult?.rows);
+  const points = rows
+    .map((row) => ({
+      bucket: String(row.bucket || ''),
+      count: Number(row.mentions ?? row.count ?? 0),
+    }))
+    .filter((row) => row.bucket && Number.isFinite(row.count));
+  const totalMentions = points.reduce((sum, row) => sum + row.count, 0);
+  const payloadForCache = {
+    ok: true,
+    source: 'bigquery',
+    projectId,
+    location,
+    cacheHit: false,
+    normalizedRowCount: rows.length,
+    totalRows: Number(queryResult?.totalRows || rows.length),
+    totalMentions,
+    jobComplete: queryResult?.jobComplete !== false,
+    jobReference: queryResult?.jobReference || null,
+    points,
+    rows,
+  };
+
+  bigQueryResultCache.set(cacheKey, {
+    timestamp: Date.now(),
+    payload: payloadForCache,
+  });
+  pruneBigQueryCache();
+  return payloadForCache;
+}
+
+async function handleBrandwatchQueryRequest(req, res) {
+  if (req.method !== 'POST') {
+    return safeEnd(res, 405, { 'Content-Type': 'application/json' }, JSON.stringify({ error: 'Method not allowed' }));
+  }
+
+  let body;
+  try {
+    body = JSON.parse(await readRequestBody(req, 65_536));
+  } catch {
+    return safeEnd(res, 400, { 'Content-Type': 'application/json' }, JSON.stringify({ error: 'Invalid JSON body' }));
+  }
+
+  const sql = String(body.bigQuerySql || '').trim();
+  const query = String(body.query || '').trim();
+  const where = String(body.bigQueryWhere || '').trim();
+  const mode = String(body.mode || 'timeline');
+
+  try {
+    const result = await executeBrandwatchBigQuery(sql, {
+      location: body.location,
+      timeoutMs: body.timeoutMs,
+      maxResults: body.maxResults,
+    });
+    return sendCompressed(req, res, 200, {
+      'Content-Type': 'application/json',
+      'Cache-Control': 'no-store',
+      'CDN-Cache-Control': 'no-store',
+    }, JSON.stringify({
+      query,
+      mode,
+      bigQueryWhere: where,
+      bigQuerySql: sql,
+      ...result,
+      status: getBigQueryStatus(),
+      executedAt: new Date().toISOString(),
+    }));
+  } catch (error) {
+    const statusCode = error?.statusCode && error.statusCode >= 400 && error.statusCode < 600
+      ? error.statusCode
+      : 500;
+    return safeEnd(res, statusCode, { 'Content-Type': 'application/json' }, JSON.stringify({
+      error: error?.message || 'BigQuery execution failed',
+      query,
+      mode,
+      bigQueryWhere: where,
+      bigQuerySql: sql,
+      status: getBigQueryStatus(),
+    }));
+  }
 }
 
 function logThrottled(level, key, ...args) {
@@ -6933,6 +7335,12 @@ function getCorsOrigin(req) {
   // Wildcard: any *.worldmonitor.app subdomain (for variant subdomains)
   try {
     const url = new URL(origin);
+    if (
+      (url.hostname === 'localhost' || url.hostname === '127.0.0.1')
+      && (url.protocol === 'http:' || url.protocol === 'https:')
+    ) {
+      return origin;
+    }
     if (url.hostname.endsWith('.worldmonitor.app') && url.protocol === 'https:') return origin;
   } catch { /* invalid origin — fall through */ }
   // Optional: allow Vercel preview deployments when explicitly enabled.
@@ -6946,6 +7354,7 @@ const server = http.createServer(async (req, res) => {
   // Always emit Vary: Origin on /rss (browser-direct via CDN) to prevent
   // cached no-CORS responses from being served to browser clients.
   const isRssRoute = pathname.startsWith('/rss');
+  const isBrandwatchRoute = pathname.startsWith('/brandwatch');
   if (corsOrigin) {
     res.setHeader('Access-Control-Allow-Origin', corsOrigin);
     res.setHeader('Vary', 'Origin');
@@ -6955,6 +7364,9 @@ const server = http.createServer(async (req, res) => {
   if (pathname.startsWith('/widget-agent')) {
     res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type, X-Widget-Key, X-Pro-Key');
+  } else if (isBrandwatchRoute) {
+    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', `Content-Type, Authorization, ${RELAY_AUTH_HEADER}`);
   } else {
     res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
     res.setHeader('Access-Control-Allow-Headers', `Content-Type, Authorization, ${RELAY_AUTH_HEADER}`);
@@ -6996,6 +7408,7 @@ const server = http.createServer(async (req, res) => {
     const mem = process.memoryUsage();
     sendCompressed(req, res, 200, { 'Content-Type': 'application/json' }, JSON.stringify({
       status: 'ok',
+      aisEnabled: AISSTREAM_ENABLED,
       clients: clients.size,
       messages: messageCount,
       droppedMessages,
@@ -7043,6 +7456,9 @@ const server = http.createServer(async (req, res) => {
         sharedSecretEnabled: !!RELAY_SHARED_SECRET,
         authHeader: RELAY_AUTH_HEADER,
         allowVercelPreviewOrigins: ALLOW_VERCEL_PREVIEW_ORIGINS,
+      },
+      brandwatch: {
+        bigQuery: getBigQueryStatus(),
       },
       rateLimit: {
         windowMs: RELAY_RATE_LIMIT_WINDOW_MS,
@@ -7479,6 +7895,8 @@ const server = http.createServer(async (req, res) => {
     handleNotamProxyRequest(req, res);
   } else if (pathname === '/aviationstack') {
     handleAviationStackRequest(req, res);
+  } else if (pathname === '/brandwatch/query') {
+    await handleBrandwatchQueryRequest(req, res);
   } else if (pathname === '/widget-agent/health' && req.method === 'GET') {
     handleWidgetAgentHealthRequest(req, res);
   } else if (pathname === '/widget-agent' && req.method === 'POST') {
@@ -7988,6 +8406,13 @@ Generate ONLY the <body> content — NO <!DOCTYPE>, NO <html>, NO <head> wrapper
 // ─── End Widget Agent ────────────────────────────────────────────────────────
 
 function connectUpstream() {
+  if (!AISSTREAM_ENABLED) {
+    if (!aisDisabledLogged) {
+      aisDisabledLogged = true;
+      console.warn('[Relay] Skipping AIS upstream connection because AISSTREAM_API_KEY is not configured');
+    }
+    return;
+  }
   // Skip if already connected or connecting
   if (upstreamSocket?.readyState === WebSocket.OPEN ||
       upstreamSocket?.readyState === WebSocket.CONNECTING) return;
@@ -8090,7 +8515,7 @@ function connectUpstream() {
 const wss = new WebSocketServer({ server });
 
 server.listen(PORT, () => {
-  console.log(`[Relay] WebSocket relay on port ${PORT} (OpenSky: ${OPENSKY_PROXY_ENABLED ? 'via proxy' : 'direct'})`);
+  console.log(`[Relay] WebSocket relay on port ${PORT} (OpenSky: ${OPENSKY_PROXY_ENABLED ? 'via proxy' : 'direct'}, AIS: ${AISSTREAM_ENABLED ? 'enabled' : 'disabled'}, BigQuery: ${getBigQueryStatus().configured ? 'configured' : 'not configured'})`);
   startTelegramPollLoop();
   startOrefPollLoop();
   startUcdpSeedLoop();

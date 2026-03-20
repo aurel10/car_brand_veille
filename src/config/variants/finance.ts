@@ -214,6 +214,7 @@ export const DEFAULT_MAP_LAYERS: MapLayers = {
   centralBanks: true,
   commodityHubs: false,
   gulfInvestments: false,
+  renaultSites: false,
   // Happy variant layers
   positiveEvents: false,
   kindness: false,
@@ -275,6 +276,7 @@ export const MOBILE_DEFAULT_MAP_LAYERS: MapLayers = {
   centralBanks: true,
   commodityHubs: false,
   gulfInvestments: false,
+  renaultSites: false,
   // Happy variant layers
   positiveEvents: false,
   kindness: false,

@@ -33,10 +33,12 @@ export interface AppContext {
   panels: Record<string, import('@/components').Panel>;
   newsPanels: Record<string, import('@/components').NewsPanel>;
   panelSettings: Record<string, PanelConfig>;
+  renaultChronologyScreen: import('@/components').RenaultChronologyScreen | null;
 
   mapLayers: MapLayers;
 
   allNews: NewsItem[];
+  gdeltNewsItems: NewsItem[];
   newsByCategory: Record<string, NewsItem[]>;
   latestMarkets: MarketData[];
   latestPredictions: import('@/services/prediction').PredictionMarket[];

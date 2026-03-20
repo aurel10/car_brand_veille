@@ -1,4 +1,4 @@
-export type EntityType = 'company' | 'index' | 'commodity' | 'crypto' | 'sector' | 'country';
+export type EntityType = 'company' | 'index' | 'commodity' | 'crypto' | 'sector' | 'country' | 'brand' | 'executive' | 'factory' | 'supplier' | 'partner';
 
 export interface EntityEntry {
   id: string;

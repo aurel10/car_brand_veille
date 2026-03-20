@@ -33,6 +33,16 @@ export const SOURCE_TIERS: Record<string, number> = {
   'EuroNews': 2,
   'France 24': 2,
   'Le Monde': 2,
+  'Le Figaro': 2,
+  'Libération': 2,
+  'Le Parisien': 2,
+  'La Tribune': 2,
+  'Ouest-France': 2,
+  'BFMTV': 2,
+  'BFM Business': 2,
+  'Franceinfo': 2,
+  "L'Usine Nouvelle": 3,
+  'Les Echos': 2,
   // Spanish
   'El País': 2,
   'El Mundo': 2,
@@ -346,6 +356,8 @@ export const SOURCE_TYPES: Record<string, SourceType> = {
   'NPR News': 'mainstream', 'Al Jazeera': 'mainstream',
   'CNN World': 'mainstream', 'Politico': 'mainstream', 'Axios': 'mainstream',
   'EuroNews': 'mainstream', 'France 24': 'mainstream', 'Le Monde': 'mainstream',
+  'Le Figaro': 'mainstream', 'Libération': 'mainstream', 'Le Parisien': 'mainstream', 'La Tribune': 'market', 'Ouest-France': 'mainstream',
+  'BFMTV': 'mainstream', 'BFM Business': 'market', 'Franceinfo': 'mainstream', "L'Usine Nouvelle": 'tech', 'Les Echos': 'market',
   // European Addition
   'El País': 'mainstream', 'El Mundo': 'mainstream', 'BBC Mundo': 'mainstream',
   'Tagesschau': 'mainstream', 'Der Spiegel': 'mainstream', 'Die Zeit': 'mainstream', 'DW News': 'mainstream',
@@ -431,6 +443,16 @@ export const SOURCE_PROPAGANDA_RISK: Record<string, SourceRiskProfile> = {
   'France 24': { risk: 'medium', stateAffiliated: 'France', note: 'French state-funded, editorially independent' },
   'EuroNews': { risk: 'low', note: 'European public broadcaster consortium', knownBiases: ['Pro-EU'] },
   'Le Monde': { risk: 'low', note: 'French newspaper of record' },
+  'Le Figaro': { risk: 'low', note: 'Major French national daily' },
+  'Libération': { risk: 'low', note: 'Major French national daily' },
+  'Le Parisien': { risk: 'low', note: 'Major French national daily' },
+  'La Tribune': { risk: 'low', note: 'French business newspaper' },
+  'Ouest-France': { risk: 'low', note: 'Major French regional daily with national coverage' },
+  'BFMTV': { risk: 'low', note: 'Major French breaking-news broadcaster' },
+  'BFM Business': { risk: 'low', note: 'French business and markets outlet' },
+  'Franceinfo': { risk: 'low', note: 'French public news service' },
+  "L'Usine Nouvelle": { risk: 'low', note: 'French industrial and manufacturing trade publication' },
+  'Les Echos': { risk: 'low', note: 'French business newspaper' },
   'DW News': { risk: 'medium', stateAffiliated: 'Germany', note: 'German state-funded, editorially independent' },
   'Voice of America': { risk: 'medium', stateAffiliated: 'USA', note: 'US government-funded' },
   'Kyiv Independent': { risk: 'medium', knownBiases: ['Pro-Ukraine'], note: 'Ukrainian perspective on Russia-Ukraine war' },
@@ -1171,6 +1193,94 @@ const COMMODITY_FEEDS: Record<string, Feed[]> = {
   ],
 };
 
+const RENAULT_FEEDS: Record<string, Feed[]> = {
+  alerts: [
+    { name: 'Reuters Business', url: rss('https://news.google.com/rss/search?q=(Renault+OR+Dacia+OR+Alpine+OR+Mobilize)+when:2d&hl=en-US&gl=US&ceid=US:en') },
+    { name: 'AFP', url: rss('https://news.google.com/rss/search?q=(AFP)+(Renault+OR+Dacia+OR+Alpine)+when:2d&hl=fr&gl=FR&ceid=FR:fr') },
+    { name: 'Les Echos Renault', url: rss('https://news.google.com/rss/search?q=site:lesechos.fr+(Renault+OR+Dacia+OR+Ampere+OR+Mobilize)+when:5d&hl=fr&gl=FR&ceid=FR:fr'), lang: 'fr' },
+    { name: 'Challenges Renault', url: rss('https://news.google.com/rss/search?q=site:challenges.fr+(Renault+OR+Dacia+OR+Alpine)+when:5d&hl=fr&gl=FR&ceid=FR:fr'), lang: 'fr' },
+    { name: 'Capital Renault', url: rss('https://news.google.com/rss/search?q=site:capital.fr+(Renault+OR+Dacia+OR+Mobilize)+when:5d&hl=fr&gl=FR&ceid=FR:fr'), lang: 'fr' },
+    { name: 'Le Point Renault', url: rss('https://news.google.com/rss/search?q=site:lepoint.fr+(Renault+OR+Dacia+OR+Alpine+OR+Mobilize)+when:5d&hl=fr&gl=FR&ceid=FR:fr'), lang: 'fr' },
+    { name: 'L Express Renault', url: rss('https://news.google.com/rss/search?q=site:lexpress.fr+(Renault+OR+Dacia+OR+Alpine+OR+Mobilize)+when:5d&hl=fr&gl=FR&ceid=FR:fr'), lang: 'fr' },
+    { name: 'La Croix Renault', url: rss('https://news.google.com/rss/search?q=site:lacroix.com+(Renault+OR+Dacia+OR+Alpine+OR+Mobilize)+when:5d&hl=fr&gl=FR&ceid=FR:fr'), lang: 'fr' },
+    { name: 'RFI Renault', url: rss('https://news.google.com/rss/search?q=site:rfi.fr+(Renault+OR+Dacia+OR+Alpine+OR+Mobilize)+when:5d&hl=fr&gl=FR&ceid=FR:fr'), lang: 'fr' },
+    { name: 'Zonebourse Renault', url: rss('https://news.google.com/rss/search?q=site:zonebourse.com+(Renault+OR+Dacia+OR+Ampere)+when:5d&hl=fr&gl=FR&ceid=FR:fr'), lang: 'fr' },
+    { name: 'France 24', url: { en: rss('https://www.france24.com/en/rss'), fr: rss('https://www.france24.com/fr/rss') } },
+    { name: 'Le Monde', url: { en: rss('https://www.lemonde.fr/en/rss/une.xml'), fr: rss('https://www.lemonde.fr/rss/une.xml') } },
+    { name: 'Le Figaro', url: rss('https://www.lefigaro.fr/rss/figaro_actualites.xml'), lang: 'fr' },
+    { name: 'Libération', url: rss('https://news.google.com/rss/search?q=site:liberation.fr+(Renault+OR+Dacia+OR+Alpine)+when:5d&hl=fr&gl=FR&ceid=FR:fr'), lang: 'fr' },
+    { name: 'Le Parisien', url: rss('https://news.google.com/rss/search?q=site:leparisien.fr+(Renault+OR+Dacia+OR+Alpine)+when:5d&hl=fr&gl=FR&ceid=FR:fr'), lang: 'fr' },
+    { name: 'BFMTV', url: rss('https://www.bfmtv.com/rss/news-24-7/'), lang: 'fr' },
+    { name: 'BFM Business', url: rss('https://www.bfmtv.com/rss/economie/'), lang: 'fr' },
+    { name: 'Franceinfo', url: rss('https://www.francetvinfo.fr/titres.rss'), lang: 'fr' },
+    { name: 'Ouest-France', url: rss('https://news.google.com/rss/search?q=site:ouest-france.fr+(Renault+OR+Dacia+OR+Alpine)+when:5d&hl=fr&gl=FR&ceid=FR:fr'), lang: 'fr' },
+  ],
+  operations: [
+    { name: "L'Usine Nouvelle", url: rss('https://www.usinenouvelle.com/rss/industrie-auto.xml'), lang: 'fr' },
+    { name: 'Journal Auto Operations', url: rss('https://news.google.com/rss/search?q=site:journalauto.com+(Renault+OR+Dacia+OR+Alpine)+(usine+OR+greve+OR+production)+when:7d&hl=fr&gl=FR&ceid=FR:fr'), lang: 'fr' },
+    { name: 'Auto Infos Operations', url: rss('https://news.google.com/rss/search?q=site:auto-infos.fr+(Renault+OR+Dacia+OR+Ampere)+(usine+OR+greve+OR+production)+when:7d&hl=fr&gl=FR&ceid=FR:fr'), lang: 'fr' },
+    { name: 'Autoactu Operations', url: rss('https://news.google.com/rss/search?q=site:autoactu.com+(Renault+OR+Dacia+OR+Ampere)+(usine+OR+production+OR+logistique)+when:7d&hl=fr&gl=FR&ceid=FR:fr'), lang: 'fr' },
+    { name: 'Actu Transport Logistique Renault', url: rss('https://news.google.com/rss/search?q=site:actu-transport-logistique.fr+(Renault+OR+Dacia+OR+Ampere)+(usine+OR+transport+OR+logistique+OR+port)+when:7d&hl=fr&gl=FR&ceid=FR:fr'), lang: 'fr' },
+    { name: 'Journal des Entreprises Usines', url: rss('https://news.google.com/rss/search?q=site:lejournaldesentreprises.com+(Renault+OR+Dacia+OR+Ampere)+(usine+OR+site+OR+emploi+OR+production)+when:7d&hl=fr&gl=FR&ceid=FR:fr'), lang: 'fr' },
+    { name: 'Google News Factories', url: rss('https://news.google.com/rss/search?q=(Renault+OR+Dacia+OR+Alpine)+(factory+OR+plant+OR+usine+OR+assembly)+when:3d&hl=en-US&gl=US&ceid=US:en') },
+    { name: 'Google News Strikes', url: rss('https://news.google.com/rss/search?q=(Renault+OR+Dacia+OR+Ampere)+(strike+OR+walkout+OR+greve+OR+union)+when:7d&hl=en-US&gl=US&ceid=US:en') },
+    { name: 'Google News Morocco', url: rss('https://news.google.com/rss/search?q=(Renault+Tangier+OR+Dacia+Morocco+OR+Tanger+Med)+when:5d&hl=en-US&gl=US&ceid=US:en') },
+    { name: 'Google News Turkey', url: rss('https://news.google.com/rss/search?q=(Renault+Bursa+OR+Oyak+Renault)+when:5d&hl=en-US&gl=US&ceid=US:en') },
+    { name: 'Google News Spain Plants', url: rss('https://news.google.com/rss/search?q=(Renault+Palencia+OR+Renault+Valladolid+OR+Dacia)+(plant+OR+factory+OR+strike)+when:7d&hl=en-US&gl=US&ceid=US:en') },
+  ],
+  'supply-chain': [
+    { name: 'Les Echos', url: rss('https://news.google.com/rss/search?q=site:lesechos.fr+(Renault+OR+Dacia)+when:5d&hl=fr&gl=FR&ceid=FR:fr'), lang: 'fr' },
+    { name: 'La Tribune', url: rss('https://news.google.com/rss/search?q=site:latribune.fr+(Renault+OR+Dacia+OR+Ampere)+when:5d&hl=fr&gl=FR&ceid=FR:fr'), lang: 'fr' },
+    { name: 'Automotive Logistics Renault', url: rss('https://news.google.com/rss/search?q=site:automotivelogistics.media+(Renault+OR+Dacia+OR+Ampere)+when:7d&hl=en-US&gl=US&ceid=US:en') },
+    { name: 'S&P Mobility Renault', url: rss('https://news.google.com/rss/search?q=site:spglobal.com+mobility+(Renault+OR+Dacia+OR+Ampere)+when:7d&hl=en-US&gl=US&ceid=US:en') },
+    { name: 'Journal Auto Supply Chain', url: rss('https://news.google.com/rss/search?q=site:journalauto.com+(Renault+OR+Dacia+OR+Ampere)+(fournisseur+OR+logistique+OR+batterie)+when:7d&hl=fr&gl=FR&ceid=FR:fr'), lang: 'fr' },
+    { name: 'Supply Chain Magazine Renault', url: rss('https://news.google.com/rss/search?q=site:supplychainmagazine.fr+(Renault+OR+Dacia+OR+Ampere)+(logistique+OR+fournisseur+OR+transport+OR+batterie)+when:7d&hl=fr&gl=FR&ceid=FR:fr'), lang: 'fr' },
+    { name: 'Actu Transport Logistique Supply', url: rss('https://news.google.com/rss/search?q=site:actu-transport-logistique.fr+(Renault+OR+Dacia+OR+Ampere)+(supply+chain+OR+logistique+OR+transport+OR+port)+when:7d&hl=fr&gl=FR&ceid=FR:fr'), lang: 'fr' },
+    { name: 'Google News Supply Chain', url: rss('https://news.google.com/rss/search?q=(Renault+OR+Dacia+OR+Ampere)+(supplier+OR+battery+OR+semiconductor+OR+logistics+OR+customs)+when:5d&hl=en-US&gl=US&ceid=US:en') },
+    { name: 'Google News Ports', url: rss('https://news.google.com/rss/search?q=(Le+Havre+OR+Marseille+OR+Tanger+Med)+(strike+OR+congestion+OR+delay)+when:5d&hl=en-US&gl=US&ceid=US:en') },
+    { name: 'Google News Battery', url: rss('https://news.google.com/rss/search?q=(Renault+OR+Ampere)+(battery+OR+cell+OR+cathode+OR+lithium)+when:5d&hl=en-US&gl=US&ceid=US:en') },
+    { name: 'Google News Chips', url: rss('https://news.google.com/rss/search?q=(Renault+OR+Dacia)+(chip+OR+semiconductor+OR+microcontroller)+when:5d&hl=en-US&gl=US&ceid=US:en') },
+  ],
+  leadership: [
+    { name: 'Google News CEO', url: rss('https://news.google.com/rss/search?q=(\"Luca+de+Meo\"+OR+\"Renault+Group\")+(scandal+OR+governance+OR+probe+OR+ethics)+when:14d&hl=en-US&gl=US&ceid=US:en') },
+    { name: 'Google News Executives', url: rss('https://news.google.com/rss/search?q=(Renault+OR+Dacia+OR+Alpine)+(CEO+OR+chairman+OR+board+OR+executive)+when:7d&hl=en-US&gl=US&ceid=US:en') },
+    { name: 'Politico', url: rss('https://news.google.com/rss/search?q=(Renault)+(Brussels+OR+EU+policy)+when:7d&hl=en-US&gl=US&ceid=US:en') },
+    { name: 'Les Echos Leadership', url: rss('https://news.google.com/rss/search?q=site:lesechos.fr+(\"Luca+de+Meo\"+OR+Renault)+(gouvernance+OR+direction+OR+conseil)+when:14d&hl=fr&gl=FR&ceid=FR:fr'), lang: 'fr' },
+    { name: 'Challenges Leadership', url: rss('https://news.google.com/rss/search?q=site:challenges.fr+(\"Luca+de+Meo\"+OR+Renault)+(CEO+OR+gouvernance+OR+conseil)+when:14d&hl=fr&gl=FR&ceid=FR:fr'), lang: 'fr' },
+    { name: 'Le Point Leadership', url: rss('https://news.google.com/rss/search?q=site:lepoint.fr+(\"Luca+de+Meo\"+OR+Renault)+(direction+OR+gouvernance+OR+conseil+OR+strategie)+when:14d&hl=fr&gl=FR&ceid=FR:fr'), lang: 'fr' },
+    { name: 'L Express Leadership', url: rss('https://news.google.com/rss/search?q=site:lexpress.fr+(\"Luca+de+Meo\"+OR+Renault)+(direction+OR+gouvernance+OR+strategie)+when:14d&hl=fr&gl=FR&ceid=FR:fr'), lang: 'fr' },
+  ],
+  regulation: [
+    { name: 'Google News Regulation', url: rss('https://news.google.com/rss/search?q=(Renault+OR+Dacia+OR+Alpine)+(recall+OR+regulator+OR+tariff+OR+antitrust+OR+emissions)+when:7d&hl=en-US&gl=US&ceid=US:en') },
+    { name: 'Google News Safety', url: rss('https://news.google.com/rss/search?q=(Renault+OR+Dacia)+(safety+probe+OR+stop-sale+OR+recall+OR+homologation)+when:10d&hl=en-US&gl=US&ceid=US:en') },
+    { name: 'Google News EU Auto', url: rss('https://news.google.com/rss/search?q=(EU+automotive+regulation+OR+EU+tariff+OR+battery+passport)+(Renault+OR+Dacia)+when:10d&hl=en-US&gl=US&ceid=US:en') },
+    { name: 'L Argus Regulation', url: rss('https://news.google.com/rss/search?q=site:largus.fr+(Renault+OR+Dacia)+(rappel+OR+homologation+OR+reglementation)+when:10d&hl=fr&gl=FR&ceid=FR:fr'), lang: 'fr' },
+    { name: 'Journal Auto Regulation', url: rss('https://news.google.com/rss/search?q=site:journalauto.com+(Renault+OR+Dacia)+(rappel+OR+reglementation+OR+enquete)+when:10d&hl=fr&gl=FR&ceid=FR:fr'), lang: 'fr' },
+    { name: 'Le Point Regulation', url: rss('https://news.google.com/rss/search?q=site:lepoint.fr+(Renault+OR+Dacia)+(rappel+OR+reglementation+OR+enquete+OR+securite)+when:10d&hl=fr&gl=FR&ceid=FR:fr'), lang: 'fr' },
+    { name: 'La Croix Regulation', url: rss('https://news.google.com/rss/search?q=site:lacroix.com+(Renault+OR+Dacia)+(rappel+OR+reglementation+OR+enquete+OR+securite)+when:10d&hl=fr&gl=FR&ceid=FR:fr'), lang: 'fr' },
+    { name: 'Google News EU Competition', url: rss('https://news.google.com/rss/search?q=(Renault+OR+Dacia)+(EU+commission+OR+competition+OR+antitrust+OR+tariff)+when:10d&hl=en-US&gl=US&ceid=US:en') },
+  ],
+  frenchpress: [
+    { name: 'Le Figaro Auto', url: rss('https://news.google.com/rss/search?q=site:lefigaro.fr+(Renault+OR+Dacia+OR+Alpine)+when:5d&hl=fr&gl=FR&ceid=FR:fr'), lang: 'fr' },
+    { name: 'Libération Auto', url: rss('https://news.google.com/rss/search?q=site:liberation.fr+(Renault+OR+Dacia+OR+Alpine+OR+Mobilize)+when:5d&hl=fr&gl=FR&ceid=FR:fr'), lang: 'fr' },
+    { name: 'Le Parisien Auto', url: rss('https://news.google.com/rss/search?q=site:leparisien.fr+(Renault+OR+Dacia+OR+Alpine+OR+Mobilize)+when:5d&hl=fr&gl=FR&ceid=FR:fr'), lang: 'fr' },
+    { name: 'BFM Business Auto', url: rss('https://news.google.com/rss/search?q=site:bfmtv.com+(Renault+OR+Dacia+OR+Alpine)+when:5d&hl=fr&gl=FR&ceid=FR:fr'), lang: 'fr' },
+    { name: 'Ouest-France Auto', url: rss('https://news.google.com/rss/search?q=site:ouest-france.fr+(Renault+OR+Dacia+OR+Alpine+OR+Mobilize)+when:5d&hl=fr&gl=FR&ceid=FR:fr'), lang: 'fr' },
+    { name: 'La Tribune Auto', url: rss('https://news.google.com/rss/search?q=site:latribune.fr+(Renault+OR+Dacia+OR+Alpine+OR+Mobilize)+when:5d&hl=fr&gl=FR&ceid=FR:fr'), lang: 'fr' },
+    { name: 'Les Echos Auto', url: rss('https://news.google.com/rss/search?q=site:lesechos.fr+(Renault+OR+Dacia+OR+Ampere+OR+Mobilize)+when:5d&hl=fr&gl=FR&ceid=FR:fr'), lang: 'fr' },
+    { name: 'Challenges Auto', url: rss('https://news.google.com/rss/search?q=site:challenges.fr+(Renault+OR+Dacia+OR+Alpine+OR+Mobilize)+when:5d&hl=fr&gl=FR&ceid=FR:fr'), lang: 'fr' },
+    { name: 'Capital Auto', url: rss('https://news.google.com/rss/search?q=site:capital.fr+(Renault+OR+Dacia+OR+Alpine+OR+Mobilize)+when:5d&hl=fr&gl=FR&ceid=FR:fr'), lang: 'fr' },
+    { name: 'Le Point Auto', url: rss('https://news.google.com/rss/search?q=site:lepoint.fr+(Renault+OR+Dacia+OR+Alpine+OR+Mobilize)+when:5d&hl=fr&gl=FR&ceid=FR:fr'), lang: 'fr' },
+    { name: 'L Express Auto', url: rss('https://news.google.com/rss/search?q=site:lexpress.fr+(Renault+OR+Dacia+OR+Alpine+OR+Mobilize)+when:5d&hl=fr&gl=FR&ceid=FR:fr'), lang: 'fr' },
+    { name: 'La Croix Auto', url: rss('https://news.google.com/rss/search?q=site:lacroix.com+(Renault+OR+Dacia+OR+Alpine+OR+Mobilize)+when:5d&hl=fr&gl=FR&ceid=FR:fr'), lang: 'fr' },
+    { name: 'RFI Auto', url: rss('https://news.google.com/rss/search?q=site:rfi.fr+(Renault+OR+Dacia+OR+Alpine+OR+Mobilize)+when:5d&hl=fr&gl=FR&ceid=FR:fr'), lang: 'fr' },
+    { name: 'Journal Auto Wire', url: rss('https://news.google.com/rss/search?q=site:journalauto.com+(Renault+OR+Dacia+OR+Alpine+OR+Mobilize)+when:5d&hl=fr&gl=FR&ceid=FR:fr'), lang: 'fr' },
+    { name: 'Auto Infos Wire', url: rss('https://news.google.com/rss/search?q=site:auto-infos.fr+(Renault+OR+Dacia+OR+Alpine+OR+Mobilize)+when:5d&hl=fr&gl=FR&ceid=FR:fr'), lang: 'fr' },
+    { name: 'Google News France', url: rss('https://news.google.com/rss/search?q=(Renault+OR+\"Groupe+Renault\"+OR+Dacia+OR+Alpine)+when:3d&hl=fr&gl=FR&ceid=FR:fr'), lang: 'fr' },
+    { name: 'Google News Industrie FR', url: rss('https://news.google.com/rss/search?q=(Renault+OR+Dacia)+(usine+OR+greve+OR+rappel+OR+enquete)+when:5d&hl=fr&gl=FR&ceid=FR:fr'), lang: 'fr' },
+  ],
+};
+
 // Variant-aware exports
 export const FEEDS = SITE_VARIANT === 'tech'
   ? TECH_FEEDS
@@ -1178,6 +1288,8 @@ export const FEEDS = SITE_VARIANT === 'tech'
     ? FINANCE_FEEDS
     : SITE_VARIANT === 'happy'
       ? HAPPY_FEEDS
+      : SITE_VARIANT === 'renault'
+        ? RENAULT_FEEDS
       : SITE_VARIANT === 'commodity'
         ? COMMODITY_FEEDS
         : FULL_FEEDS;
@@ -1213,6 +1325,9 @@ export const SOURCE_REGION_MAP: Record<string, { labelKey: string; feedKeys: str
   dealsCorpFin: { labelKey: 'header.sourceRegionDeals', feedKeys: ['institutional', 'derivatives'] },
   finRegulation: { labelKey: 'header.sourceRegionFinRegulation', feedKeys: ['regulation'] },
   gulfMena: { labelKey: 'header.sourceRegionGulfMena', feedKeys: ['gccNews'] },
+  renaultCore: { labelKey: 'header.sourceRegionWorldwide', feedKeys: ['alerts', 'frenchpress'] },
+  renaultOps: { labelKey: 'header.sourceRegionTopical', feedKeys: ['operations', 'supply-chain'] },
+  renaultRisk: { labelKey: 'header.sourceRegionIntel', feedKeys: ['leadership', 'regulation'] },
 };
 
 export const INTEL_SOURCES: Feed[] = [
@@ -1282,6 +1397,12 @@ export const DEFAULT_ENABLED_SOURCES: Record<string, string[]> = {
   thinktanks: ['Foreign Policy', 'Atlantic Council', 'Foreign Affairs', 'CSIS', 'RAND', 'Brookings', 'Carnegie', 'War on the Rocks'],
   crisis: ['CrisisWatch', 'IAEA', 'WHO', 'UNHCR'],
   energy: ['Oil & Gas', 'Nuclear Energy', 'Reuters Energy', 'Mining & Resources'],
+  alerts: ['Reuters Business', 'AFP', 'Les Echos Renault', 'Challenges Renault', 'Capital Renault', 'Le Point Renault', 'L Express Renault', 'La Croix Renault', 'RFI Renault', 'Zonebourse Renault', 'France 24', 'Le Monde', 'Le Figaro', 'Libération', 'Le Parisien', 'BFMTV', 'BFM Business', 'Franceinfo', 'Ouest-France'],
+  operations: ["L'Usine Nouvelle", 'Journal Auto Operations', 'Auto Infos Operations', 'Autoactu Operations', 'Actu Transport Logistique Renault', 'Journal des Entreprises Usines', 'Google News Factories', 'Google News Strikes', 'Google News Morocco', 'Google News Turkey', 'Google News Spain Plants'],
+  'supply-chain': ['Les Echos', 'La Tribune', 'Automotive Logistics Renault', 'S&P Mobility Renault', 'Journal Auto Supply Chain', 'Supply Chain Magazine Renault', 'Actu Transport Logistique Supply', 'Google News Supply Chain', 'Google News Ports', 'Google News Battery', 'Google News Chips'],
+  leadership: ['Google News CEO', 'Google News Executives', 'Les Echos Leadership', 'Challenges Leadership', 'Le Point Leadership', 'L Express Leadership'],
+  regulation: ['Google News Regulation', 'Google News Safety', 'Google News EU Auto', 'L Argus Regulation', 'Journal Auto Regulation', 'Le Point Regulation', 'La Croix Regulation', 'Google News EU Competition'],
+  frenchpress: ['Le Figaro Auto', 'Libération Auto', 'Le Parisien Auto', 'BFM Business Auto', 'Ouest-France Auto', 'La Tribune Auto', 'Les Echos Auto', 'Challenges Auto', 'Capital Auto', 'Le Point Auto', 'L Express Auto', 'La Croix Auto', 'RFI Auto', 'Journal Auto Wire', 'Auto Infos Wire', 'Google News France', 'Google News Industrie FR'],
 };
 
 export const DEFAULT_ENABLED_INTEL: string[] = [
@@ -1301,7 +1422,15 @@ export function getLocaleBoostedSources(locale: string): Set<string> {
   const lang = (locale.split('-')[0] ?? 'en').toLowerCase();
   const boosted = new Set<string>();
   if (lang === 'en') return boosted;
-  const allFeeds = [...Object.values(FULL_FEEDS).flat(), ...INTEL_SOURCES];
+  const allFeeds = [
+    ...Object.values(FULL_FEEDS).flat(),
+    ...Object.values(TECH_FEEDS).flat(),
+    ...Object.values(FINANCE_FEEDS).flat(),
+    ...Object.values(HAPPY_FEEDS).flat(),
+    ...Object.values(COMMODITY_FEEDS).flat(),
+    ...Object.values(RENAULT_FEEDS).flat(),
+    ...INTEL_SOURCES,
+  ];
   for (const f of allFeeds) {
     if (f.lang === lang) boosted.add(f.name);
     if (typeof f.url === 'object' && lang in f.url) boosted.add(f.name);
@@ -1315,21 +1444,27 @@ export function computeDefaultDisabledSources(locale?: string): string[] {
     for (const name of getLocaleBoostedSources(locale)) enabled.add(name);
   }
   const all = new Set<string>();
-  for (const feeds of Object.values(FULL_FEEDS)) for (const f of feeds) all.add(f.name);
+  for (const feedSet of [FULL_FEEDS, TECH_FEEDS, FINANCE_FEEDS, HAPPY_FEEDS, COMMODITY_FEEDS, RENAULT_FEEDS]) {
+    for (const feeds of Object.values(feedSet)) for (const f of feeds) all.add(f.name);
+  }
   for (const f of INTEL_SOURCES) all.add(f.name);
   return [...all].filter(name => !enabled.has(name));
 }
 
 export function getTotalFeedCount(): number {
   const all = new Set<string>();
-  for (const feeds of Object.values(FULL_FEEDS)) for (const f of feeds) all.add(f.name);
+  for (const feedSet of [FULL_FEEDS, TECH_FEEDS, FINANCE_FEEDS, HAPPY_FEEDS, COMMODITY_FEEDS, RENAULT_FEEDS]) {
+    for (const feeds of Object.values(feedSet)) for (const f of feeds) all.add(f.name);
+  }
   for (const f of INTEL_SOURCES) all.add(f.name);
   return all.size;
 }
 
 if (import.meta.env.DEV) {
   const allFeedNames = new Set<string>();
-  for (const feeds of Object.values(FULL_FEEDS)) for (const f of feeds) allFeedNames.add(f.name);
+  for (const feedSet of [FULL_FEEDS, TECH_FEEDS, FINANCE_FEEDS, HAPPY_FEEDS, COMMODITY_FEEDS, RENAULT_FEEDS]) {
+    for (const feeds of Object.values(feedSet)) for (const f of feeds) allFeedNames.add(f.name);
+  }
   for (const f of INTEL_SOURCES) allFeedNames.add(f.name);
   const defaultEnabled = getAllDefaultEnabledSources();
   for (const name of defaultEnabled) {

@@ -35,6 +35,7 @@ import type {
   CyberThreat,
   CableHealthRecord,
   MilitaryBaseEnriched,
+  RenaultSite,
 } from '@/types';
 import { fetchMilitaryBases, type MilitaryBaseCluster as ServerBaseCluster } from '@/services/military-bases';
 import type { AirportDelayAlert, PositionSample } from '@/services/aviation';
@@ -88,6 +89,7 @@ import {
   MINING_SITES,
   PROCESSING_PLANTS,
   COMMODITY_PORTS as COMMODITY_GEO_PORTS,
+  RENAULT_SITES,
 } from '@/config';
 import type { GulfInvestment } from '@/types';
 import { resolveTradeRouteSegments, TRADE_ROUTES as TRADE_ROUTES_LIST, type TradeRouteSegment } from '@/config/trade-routes';
@@ -183,6 +185,7 @@ const LAYER_ZOOM_THRESHOLDS: Partial<Record<keyof MapLayers, { minZoom: number; 
   irradiators: { minZoom: 4 },
   spaceports: { minZoom: 3 },
   gulfInvestments: { minZoom: 2, showLabels: 5 },
+  renaultSites: { minZoom: 2, showLabels: 4 },
 };
 // Export for external use
 export { LAYER_ZOOM_THRESHOLDS };
@@ -1501,6 +1504,9 @@ export class DeckGLMap {
     if (mapLayers.commodityPorts) {
       layers.push(this.createCommodityPortsLayer());
     }
+    if (mapLayers.renaultSites) {
+      layers.push(...this.createRenaultSitesLayer());
+    }
 
     // APT Groups layer (geopolitical variant only - always shown, no toggle)
     if (SITE_VARIANT !== 'tech' && SITE_VARIANT !== 'happy') {
@@ -2661,6 +2667,44 @@ export class DeckGLMap {
     });
   }
 
+  private createRenaultSitesLayer(): Layer[] {
+    const layers: Layer[] = [
+      new ScatterplotLayer<RenaultSite>({
+        id: 'renault-sites-layer',
+        data: RENAULT_SITES,
+        getPosition: (d) => [d.lon, d.lat],
+        getRadius: (d) => d.type === 'logistics' ? 14000 : d.type === 'hq' ? 12000 : 10000,
+        getFillColor: (d) => d.type === 'logistics'
+          ? [249, 115, 22, 220] as [number, number, number, number]
+          : [239, 68, 68, 220] as [number, number, number, number],
+        radiusMinPixels: 6,
+        radiusMaxPixels: 16,
+        pickable: true,
+        stroked: true,
+        getLineColor: [255, 255, 255, 120] as [number, number, number, number],
+        lineWidthMinPixels: 1.5,
+      }),
+    ];
+
+    const zoom = this.maplibreMap?.getZoom() ?? 2;
+    if (zoom >= 4) {
+      layers.push(new TextLayer<RenaultSite>({
+        id: 'renault-sites-labels',
+        data: RENAULT_SITES,
+        getPosition: (d) => [d.lon, d.lat],
+        getText: (d) => d.name,
+        getColor: [245, 245, 245, 230] as [number, number, number, number],
+        getSize: 12,
+        getPixelOffset: [0, -16],
+        pickable: false,
+        fontFamily: 'system-ui, sans-serif',
+        fontWeight: 700,
+      }));
+    }
+
+    return layers;
+  }
+
   // Tech variant layers
   private createStartupHubsLayer(): ScatterplotLayer {
     return new ScatterplotLayer({
@@ -3405,6 +3449,8 @@ export class DeckGLMap {
           return { html: `<div class="deckgl-tooltip"><strong>${text(ev?.title || '')}</strong><br/>${text(ev?.location || '')}</div>` };
         }
         return { html: `<div class="deckgl-tooltip"><strong>${t('components.deckgl.tooltip.techEventsCount', { count: String(obj.count) })}</strong><br/>${text(obj.location)}</div>` };
+      case 'renault-sites-layer':
+        return { html: `<div class="deckgl-tooltip"><strong>${text(obj.name)}</strong><br/>${text(obj.city)}, ${text(obj.country)}${obj.type ? ` · ${text(obj.type)}` : ''}</div>` };
       case 'datacenter-clusters-layer':
         if (obj.count === 1) {
           const dc = obj.items?.[0];
@@ -4202,6 +4248,24 @@ export class DeckGLMap {
       </div>
     `;
 
+    const renaultHelpContent = `
+      ${helpHeader}
+      <div class="layer-help-content">
+        ${helpSection('financeCore', [
+      helpItem(label('renaultSites'), 'financeCenters'),
+      helpItem(label('tradeRoutes'), 'tradeRoutes'),
+      helpItem(label('internetOutages'), 'financeOutages'),
+      helpItem(label('weatherAlerts'), 'weatherAlertsMarket'),
+      helpItem(label('naturalEvents'), 'naturalEventsMacro'),
+    ])}
+        ${helpSection('infrastructureRisk', [
+      helpItem(label('underseaCables'), 'financeCables'),
+      helpItem(label('strategicWaterways'), 'macroWaterways'),
+      helpItem(label('dayNight'), 'dayNight'),
+    ])}
+      </div>
+    `;
+
     const fullHelpContent = `
       ${helpHeader}
       <div class="layer-help-content">
@@ -4257,6 +4321,8 @@ export class DeckGLMap {
       ? techHelpContent
       : SITE_VARIANT === 'finance'
         ? financeHelpContent
+        : SITE_VARIANT === 'renault'
+          ? renaultHelpContent
         : fullHelpContent;
 
     popup.querySelector('.layer-help-close')?.addEventListener('click', () => popup.remove());
@@ -4322,6 +4388,12 @@ export class DeckGLMap {
             { shape: shapes.circle('rgb(255, 200, 50)'), label: 'Renewable Installation' },
             { shape: shapes.circle('rgb(160, 100, 255)'), label: t('components.deckgl.legend.aircraft') },
           ]
+          : SITE_VARIANT === 'renault'
+            ? [
+              { shape: shapes.circle('rgb(239, 68, 68)'), label: 'Renault factory' },
+              { shape: shapes.square('rgb(249, 115, 22)'), label: 'Logistics node' },
+              { shape: shapes.circle('rgb(255, 100, 50)'), label: 'Weather risk' },
+            ]
           : [
             { shape: shapes.circle('rgb(255, 68, 68)'), label: t('components.deckgl.legend.highAlert') },
             { shape: shapes.circle('rgb(255, 165, 0)'), label: t('components.deckgl.legend.elevated') },

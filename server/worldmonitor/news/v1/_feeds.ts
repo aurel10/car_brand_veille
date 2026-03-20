@@ -373,6 +373,48 @@ export const VARIANT_FEEDS: Record<string, Record<string, ServerFeed[]>> = {
     ],
   },
 
+  renault: {
+    alerts: [
+      { name: 'Reuters Business', url: gn('(Renault OR Dacia OR Alpine OR Mobilize) when:2d') },
+      { name: 'France 24', url: 'https://www.france24.com/fr/rss', lang: 'fr' },
+      { name: 'Le Monde', url: 'https://www.lemonde.fr/rss/une.xml', lang: 'fr' },
+      { name: 'Le Figaro', url: 'https://www.lefigaro.fr/rss/figaro_actualites.xml', lang: 'fr' },
+      { name: 'BFMTV', url: 'https://www.bfmtv.com/rss/news-24-7/', lang: 'fr' },
+      { name: 'BFM Business', url: 'https://www.bfmtv.com/rss/economie/', lang: 'fr' },
+      { name: 'Franceinfo', url: 'https://www.francetvinfo.fr/titres.rss', lang: 'fr' },
+    ],
+    operations: [
+      { name: "L'Usine Nouvelle", url: 'https://www.usinenouvelle.com/rss/industrie-auto.xml', lang: 'fr' },
+      { name: 'Google News Factories', url: gn('(Renault OR Dacia OR Alpine OR Ampere) (factory OR plant OR usine OR assembly) when:3d') },
+      { name: 'Google News Strikes', url: gn('(Renault OR Dacia OR Ampere) (strike OR walkout OR greve OR union) when:7d') },
+      { name: 'Google News Morocco', url: gn('(Renault Tangier OR Dacia Morocco OR Tanger Med) when:5d') },
+      { name: 'Google News Turkey', url: gn('(Renault Bursa OR Oyak Renault) when:5d') },
+    ],
+    'supply-chain': [
+      { name: 'Les Echos', url: gn('site:lesechos.fr (Renault OR Dacia) when:5d'), lang: 'fr' },
+      { name: 'Google News Supply Chain', url: gn('(Renault OR Dacia OR Ampere OR Horse) (supplier OR battery OR semiconductor OR logistics OR customs) when:5d') },
+      { name: 'Google News Ports', url: gn('(Le Havre OR Marseille OR Tanger Med) (strike OR congestion OR delay) when:5d') },
+      { name: 'Google News Battery', url: gn('(Renault OR Ampere) (battery OR cell OR cathode OR lithium) when:5d') },
+      { name: 'Google News Chips', url: gn('(Renault OR Dacia) (chip OR semiconductor OR microcontroller) when:5d') },
+    ],
+    leadership: [
+      { name: 'Google News CEO', url: gn('("Luca de Meo" OR "Renault Group") (scandal OR governance OR probe OR ethics) when:14d') },
+      { name: 'Google News Executives', url: gn('(Renault OR Dacia OR Alpine) (CEO OR chairman OR board OR executive) when:7d') },
+      { name: 'Politico', url: gn('(Renault) (Brussels OR EU policy) when:7d') },
+    ],
+    regulation: [
+      { name: 'Google News Regulation', url: gn('(Renault OR Dacia OR Alpine) (recall OR regulator OR tariff OR antitrust OR emissions) when:7d') },
+      { name: 'Google News Safety', url: gn('(Renault OR Dacia) (safety probe OR stop-sale OR recall OR homologation) when:10d') },
+      { name: 'Google News EU Auto', url: gn('(EU automotive regulation OR EU tariff OR battery passport) (Renault OR Dacia) when:10d') },
+    ],
+    frenchpress: [
+      { name: 'Le Figaro Auto', url: 'https://news.google.com/rss/search?q=site:lefigaro.fr+(Renault+OR+Dacia+OR+Alpine)+when:5d&hl=fr&gl=FR&ceid=FR:fr', lang: 'fr' },
+      { name: 'BFM Business Auto', url: 'https://news.google.com/rss/search?q=site:bfmtv.com+(Renault+OR+Dacia+OR+Alpine)+when:5d&hl=fr&gl=FR&ceid=FR:fr', lang: 'fr' },
+      { name: 'Google News France', url: 'https://news.google.com/rss/search?q=(Renault+OR+%22Groupe+Renault%22+OR+Dacia+OR+Alpine)+when:3d&hl=fr&gl=FR&ceid=FR:fr', lang: 'fr' },
+      { name: 'Google News Industrie FR', url: 'https://news.google.com/rss/search?q=(Renault+OR+Dacia)+(usine+OR+greve+OR+rappel+OR+enquete)+when:5d&hl=fr&gl=FR&ceid=FR:fr', lang: 'fr' },
+    ],
+  },
+
   happy: {
     positive: [
       { name: 'Good News Network', url: 'https://www.goodnewsnetwork.org/feed/' },

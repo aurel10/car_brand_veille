@@ -58,3 +58,7 @@ api-cache.json
 verbose-mode.json
 skills-lock.json
 tmp/
+
+# secrets
+poc-renault-veille-a21e2290f8ef.json
+*.json

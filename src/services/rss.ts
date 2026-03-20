@@ -239,8 +239,9 @@ export async function fetchFeed(feed: Feed): Promise<NewsItem[]> {
     const isAtom = items.length === 0;
     if (isAtom) items = doc.querySelectorAll('entry');
 
+    const perFeedLimit = SITE_VARIANT === 'renault' ? 10 : 5;
     const parsed = Array.from(items)
-      .slice(0, 5)
+      .slice(0, perFeedLimit)
       .map((item) => {
         const title = item.querySelector('title')?.textContent || '';
         let link = '';
@@ -322,11 +323,12 @@ export async function fetchCategoryFeeds(
   options: {
     batchSize?: number;
     onBatch?: (items: NewsItem[]) => void;
+    language?: string;
   } = {}
 ): Promise<NewsItem[]> {
-  const topLimit = 20;
+  const topLimit = SITE_VARIANT === 'renault' ? 60 : 20;
   const batchSize = options.batchSize ?? 5;
-  const currentLang = getCurrentLanguage();
+  const currentLang = (options.language || getCurrentLanguage()).toLowerCase();
 
   // Filter feeds by language:
   // 1. Feeds with no explicit 'lang' are universal (or multi-url handled inside fetchFeed)

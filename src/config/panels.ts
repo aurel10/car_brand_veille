@@ -111,6 +111,7 @@ const FULL_MAP_LAYERS: MapLayers = {
   accelerators: false,
   techHQs: false,
   techEvents: false,
+  renaultSites: false,
   // Finance layers (disabled in full variant)
   stockExchanges: false,
   financialCenters: false,
@@ -173,6 +174,7 @@ const FULL_MOBILE_MAP_LAYERS: MapLayers = {
   accelerators: false,
   techHQs: false,
   techEvents: false,
+  renaultSites: false,
   // Finance layers (disabled in full variant)
   stockExchanges: false,
   financialCenters: false,
@@ -276,6 +278,7 @@ const TECH_MAP_LAYERS: MapLayers = {
   accelerators: false,
   techHQs: true,
   techEvents: true,
+  renaultSites: false,
   // Finance layers (disabled in tech variant)
   stockExchanges: false,
   financialCenters: false,
@@ -337,6 +340,7 @@ const TECH_MOBILE_MAP_LAYERS: MapLayers = {
   accelerators: false,
   techHQs: false,
   techEvents: true,
+  renaultSites: false,
   // Finance layers (disabled in tech variant)
   stockExchanges: false,
   financialCenters: false,
@@ -444,6 +448,7 @@ const FINANCE_MAP_LAYERS: MapLayers = {
   accelerators: false,
   techHQs: false,
   techEvents: false,
+  renaultSites: false,
   // Finance layers (enabled in finance variant)
   stockExchanges: true,
   financialCenters: true,
@@ -505,6 +510,7 @@ const FINANCE_MOBILE_MAP_LAYERS: MapLayers = {
   accelerators: false,
   techHQs: false,
   techEvents: false,
+  renaultSites: false,
   // Finance layers (limited on mobile)
   stockExchanges: true,
   financialCenters: false,
@@ -582,6 +588,7 @@ const HAPPY_MAP_LAYERS: MapLayers = {
   accelerators: false,
   techHQs: false,
   techEvents: false,
+  renaultSites: false,
   // Finance layers (disabled)
   stockExchanges: false,
   financialCenters: false,
@@ -643,6 +650,7 @@ const HAPPY_MOBILE_MAP_LAYERS: MapLayers = {
   accelerators: false,
   techHQs: false,
   techEvents: false,
+  renaultSites: false,
   // Finance layers (disabled)
   stockExchanges: false,
   financialCenters: false,
@@ -736,6 +744,7 @@ const COMMODITY_MAP_LAYERS: MapLayers = {
   accelerators: false,
   techHQs: false,
   techEvents: false,
+  renaultSites: false,
   // Finance layers (enabled for commodity hubs)
   stockExchanges: false,
   financialCenters: false,
@@ -797,6 +806,7 @@ const COMMODITY_MOBILE_MAP_LAYERS: MapLayers = {
   accelerators: false,
   techHQs: false,
   techEvents: false,
+  renaultSites: false,
   // Finance layers (limited on mobile)
   stockExchanges: false,
   financialCenters: false,
@@ -822,6 +832,136 @@ const COMMODITY_MOBILE_MAP_LAYERS: MapLayers = {
 };
 
 // ============================================
+// RENAULT VARIANT (Crisis Intelligence)
+// ============================================
+const RENAULT_PANELS: Record<string, PanelConfig> = {
+  map: { name: 'Renault Sites Map', enabled: true, priority: 1 },
+  'brandwatch-feed': { name: 'Thematic Alerts', enabled: true, priority: 1 },
+  'weak-signals': { name: 'Weak Signals', enabled: true, priority: 1 },
+  'brandwatch-queries': { name: 'Query Builder', enabled: true, priority: 1 },
+  'threat-matrix': { name: 'Threat Matrix', enabled: true, priority: 1 },
+  'mention-trends': { name: 'Mention Trends', enabled: true, priority: 1 },
+  alerts: { name: 'Global Alerts', enabled: true, priority: 2 },
+  operations: { name: 'Operations & Plants', enabled: true, priority: 2 },
+  'supply-chain': { name: 'Supply Chain', enabled: true, priority: 2 },
+  leadership: { name: 'Leadership Watch', enabled: true, priority: 2 },
+  regulation: { name: 'Regulation & Safety', enabled: true, priority: 2 },
+  frenchpress: { name: 'French Press', enabled: true, priority: 2 },
+};
+
+const RENAULT_MAP_LAYERS: MapLayers = {
+  gpsJamming: false,
+  satellites: false,
+  conflicts: false,
+  bases: false,
+  cables: false,
+  pipelines: false,
+  hotspots: false,
+  ais: false,
+  nuclear: false,
+  irradiators: false,
+  radiationWatch: false,
+  sanctions: false,
+  weather: true,
+  economic: false,
+  waterways: false,
+  outages: true,
+  cyberThreats: false,
+  datacenters: false,
+  protests: false,
+  flights: false,
+  military: false,
+  natural: true,
+  spaceports: false,
+  minerals: false,
+  fires: false,
+  ucdpEvents: false,
+  displacement: false,
+  climate: false,
+  startupHubs: false,
+  cloudRegions: false,
+  accelerators: false,
+  techHQs: false,
+  techEvents: false,
+  renaultSites: true,
+  stockExchanges: false,
+  financialCenters: false,
+  centralBanks: false,
+  commodityHubs: false,
+  gulfInvestments: false,
+  positiveEvents: false,
+  kindness: false,
+  happiness: false,
+  speciesRecovery: false,
+  renewableInstallations: false,
+  tradeRoutes: true,
+  iranAttacks: false,
+  ciiChoropleth: false,
+  dayNight: false,
+  miningSites: false,
+  processingPlants: false,
+  commodityPorts: false,
+  webcams: false,
+  weatherRadar: false,
+};
+
+const RENAULT_MOBILE_MAP_LAYERS: MapLayers = {
+  gpsJamming: false,
+  satellites: false,
+  conflicts: false,
+  bases: false,
+  cables: false,
+  pipelines: false,
+  hotspots: false,
+  ais: false,
+  nuclear: false,
+  irradiators: false,
+  radiationWatch: false,
+  sanctions: false,
+  weather: true,
+  economic: false,
+  waterways: false,
+  outages: true,
+  cyberThreats: false,
+  datacenters: false,
+  protests: false,
+  flights: false,
+  military: false,
+  natural: true,
+  spaceports: false,
+  minerals: false,
+  fires: false,
+  ucdpEvents: false,
+  displacement: false,
+  climate: false,
+  startupHubs: false,
+  cloudRegions: false,
+  accelerators: false,
+  techHQs: false,
+  techEvents: false,
+  renaultSites: true,
+  stockExchanges: false,
+  financialCenters: false,
+  centralBanks: false,
+  commodityHubs: false,
+  gulfInvestments: false,
+  positiveEvents: false,
+  kindness: false,
+  happiness: false,
+  speciesRecovery: false,
+  renewableInstallations: false,
+  tradeRoutes: false,
+  iranAttacks: false,
+  ciiChoropleth: false,
+  dayNight: false,
+  miningSites: false,
+  processingPlants: false,
+  commodityPorts: false,
+  webcams: false,
+  weatherRadar: false,
+};
+
+// ============================================
 // VARIANT-AWARE EXPORTS
 // ============================================
 export const DEFAULT_PANELS = SITE_VARIANT === 'happy' 
@@ -830,6 +970,8 @@ export const DEFAULT_PANELS = SITE_VARIANT === 'happy'
     ? TECH_PANELS 
     : SITE_VARIANT === 'finance' 
       ? FINANCE_PANELS 
+      : SITE_VARIANT === 'renault'
+        ? RENAULT_PANELS
       : SITE_VARIANT === 'commodity'
         ? COMMODITY_PANELS
         : FULL_PANELS;
@@ -840,6 +982,8 @@ export const DEFAULT_MAP_LAYERS = SITE_VARIANT === 'happy'
     ? TECH_MAP_LAYERS 
     : SITE_VARIANT === 'finance' 
       ? FINANCE_MAP_LAYERS 
+      : SITE_VARIANT === 'renault'
+        ? RENAULT_MAP_LAYERS
       : SITE_VARIANT === 'commodity'
         ? COMMODITY_MAP_LAYERS
         : FULL_MAP_LAYERS;
@@ -850,6 +994,8 @@ export const MOBILE_DEFAULT_MAP_LAYERS = SITE_VARIANT === 'happy'
     ? TECH_MOBILE_MAP_LAYERS 
     : SITE_VARIANT === 'finance' 
       ? FINANCE_MOBILE_MAP_LAYERS 
+      : SITE_VARIANT === 'renault'
+        ? RENAULT_MOBILE_MAP_LAYERS
       : SITE_VARIANT === 'commodity'
         ? COMMODITY_MOBILE_MAP_LAYERS
         : FULL_MOBILE_MAP_LAYERS;
@@ -868,6 +1014,7 @@ export const LAYER_TO_SOURCE: Partial<Record<keyof MapLayers, DataSourceId[]>> =
   climate: ['climate'],
   sanctions: ['sanctions_pressure'],
   radiationWatch: ['radiation'],
+  renaultSites: ['rss'],
 };
 
 // ============================================
@@ -990,6 +1137,17 @@ export const PANEL_CATEGORY_MAP: Record<string, { labelKey: string; panelKeys: s
     labelKey: 'header.panelCatCommodityEcon',
     panelKeys: ['trade-policy', 'sanctions-pressure', 'economic', 'gulf-economies', 'gcc-investments', 'finance', 'polymarket', 'airline-intel', 'world-clock', 'monitors'],
     variants: ['commodity'],
+  },
+
+  renaultCore: {
+    labelKey: 'header.panelCatCore',
+    panelKeys: ['map', 'brandwatch-feed', 'weak-signals', 'brandwatch-queries', 'threat-matrix', 'mention-trends'],
+    variants: ['renault'],
+  },
+  renaultNews: {
+    labelKey: 'header.panelCatRegionalNews',
+    panelKeys: ['alerts', 'operations', 'supply-chain', 'leadership', 'regulation', 'frenchpress'],
+    variants: ['renault'],
   },
 
   // Happy variant

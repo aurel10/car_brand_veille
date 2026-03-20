@@ -42,7 +42,6 @@ import { PanelLayoutManager } from '@/app/panel-layout';
 import { DataLoaderManager } from '@/app/data-loader';
 import { EventHandlerManager } from '@/app/event-handlers';
 import { resolveUserRegion, resolvePreciseUserCoordinates, type PreciseCoordinates } from '@/utils/user-location';
-import { showProBanner } from '@/components/ProBanner';
 import {
   CorrelationEngine,
   militaryAdapter,
@@ -362,9 +361,9 @@ export class App {
     if (!CYBER_LAYER_ENABLED) {
       mapLayers.cyberThreats = false;
     }
-    // One-time migration: reduce default-enabled sources (full variant only)
-    if (currentVariant === 'full') {
-      const baseKey = 'worldmonitor-sources-reduction-v3';
+    // One-time migration: reduce default-enabled sources per variant.
+    if (currentVariant !== 'happy') {
+      const baseKey = `worldmonitor-sources-reduction-v4:${currentVariant}`;
       if (!localStorage.getItem(baseKey)) {
         const defaultDisabled = computeDefaultDisabledSources();
         saveToStorage(STORAGE_KEYS.disabledFeeds, defaultDisabled);
@@ -374,7 +373,7 @@ export class App {
       }
       // Locale boost: additively enable locale-matched sources (runs once per locale)
       const userLang = ((navigator.language ?? 'en').split('-')[0] ?? 'en').toLowerCase();
-      const localeKey = `worldmonitor-locale-boost-${userLang}`;
+      const localeKey = `worldmonitor-locale-boost-${currentVariant}-${userLang}`;
       if (userLang !== 'en' && !localStorage.getItem(localeKey)) {
         const boosted = getLocaleBoostedSources(userLang);
         if (boosted.size > 0) {
@@ -398,8 +397,10 @@ export class App {
       panels: {},
       newsPanels: {},
       panelSettings,
+      renaultChronologyScreen: null,
       mapLayers,
       allNews: [],
+      gdeltNewsItems: [],
       newsByCategory: {},
       latestMarkets: [],
       latestPredictions: [],
@@ -562,7 +563,6 @@ export class App {
 
     // Phase 1: Layout (creates map + panels — they'll find hydrated data)
     this.panelLayout.init();
-    showProBanner(this.state.container);
 
     const mobileGeoCoords = await geoCoordsPromise;
     if (mobileGeoCoords && this.state.map) {

@@ -120,6 +120,12 @@ import {
   CryptoPanel,
   PredictionPanel,
   MonitorPanel,
+  BrandwatchFeedPanel,
+  BrandwatchQueriesPanel,
+  WeakSignalsPanel,
+  ThreatMatrixPanel,
+  MentionTrendsPanel,
+  RenaultChronologyScreen,
   InsightsPanel,
   CIIPanel,
   StrategicPosturePanel,
@@ -138,6 +144,9 @@ import { fetchConservationWins } from '@/services/conservation-data';
 import { fetchRenewableEnergyData, fetchEnergyCapacity } from '@/services/renewable-energy-data';
 import { checkMilestones } from '@/services/celebration';
 import { fetchHappinessScores } from '@/services/happiness-data';
+import { buildBrandwatchSnapshot, type BrandwatchSnapshot } from '@/services/brandwatch/engine';
+import { fetchBrandwatchGdeltExecution } from '@/services/brandwatch/gdelt';
+import { loadBrandwatchQueries } from '@/services/brandwatch/store';
 import { fetchRenewableInstallations } from '@/services/renewable-installations';
 import { filterBySentiment } from '@/services/sentiment-gate';
 import { fetchAllPositiveTopicIntelligence } from '@/services/gdelt-intel';
@@ -215,6 +224,7 @@ export class DataLoaderManager implements AppModule {
   private boundMarketWatchlistHandler: (() => void) | null = null;
   private satellitePropagationCleanup: (() => void) | null = null;
   private cachedSatRecs: SatRecEntry[] | null = null;
+  private brandwatchGdeltRequestVersion = 0;
 
   private digestBreaker = { state: 'closed' as 'closed' | 'open' | 'half-open', failures: 0, cooldownUntil: 0 };
   private readonly digestRequestTimeoutMs = 8000;
@@ -314,6 +324,7 @@ export class DataLoaderManager implements AppModule {
     // Desktop: server digest has fewer categories than client FEEDS config.
     // Enable per-feed RSS fallback so missing categories fetch directly.
     if (isDesktopRuntime()) return true;
+    if (SITE_VARIANT === 'renault') return true;
     return isFeatureEnabled('newsPerFeedFallback');
   }
 
@@ -873,7 +884,9 @@ export class DataLoaderManager implements AppModule {
         return [];
       }
 
-      const fallbackFeeds = this.selectLimitedFeeds(enabledFeeds, this.perFeedFallbackCategoryFeedLimit);
+      const fallbackFeeds = SITE_VARIANT === 'renault'
+        ? enabledFeeds
+        : this.selectLimitedFeeds(enabledFeeds, this.perFeedFallbackCategoryFeedLimit);
       if (fallbackFeeds.length < enabledFeeds.length) {
         console.warn(`[News] Digest missing for "${category}", using limited per-feed fallback (${fallbackFeeds.length}/${enabledFeeds.length} feeds)`);
       } else {
@@ -881,7 +894,9 @@ export class DataLoaderManager implements AppModule {
       }
 
       const items = await fetchCategoryFeeds(fallbackFeeds, {
-        batchSize: this.perFeedFallbackBatchSize,
+        batchSize: SITE_VARIANT === 'renault' ? Math.max(4, this.perFeedFallbackBatchSize) : this.perFeedFallbackBatchSize,
+        // The Renault French Press panel should stay French even when the UI language is English.
+        ...(SITE_VARIANT === 'renault' && category === 'frenchpress' ? { language: 'fr' } : {}),
         onBatch: (partialItems) => {
           scheduleRender(partialItems);
           this.flashMapForNews(partialItems);
@@ -1052,6 +1067,7 @@ export class DataLoaderManager implements AppModule {
     this.ctx.allNews = collectedNews;
     this.ctx.initialLoadComplete = true;
     mountCommunityWidget();
+    this.ctx.renaultChronologyScreen?.update([...this.ctx.allNews, ...this.ctx.gdeltNewsItems]);
 
     this.ctx.map?.updateHotspotActivity(this.ctx.allNews);
 
@@ -2413,8 +2429,99 @@ export class DataLoaderManager implements AppModule {
   }
 
   updateMonitorResults(): void {
+    const renaultChronologyScreen = this.ctx.renaultChronologyScreen as RenaultChronologyScreen | null;
+    renaultChronologyScreen?.update([...this.ctx.allNews, ...this.ctx.gdeltNewsItems]);
+
     const monitorPanel = this.ctx.panels['monitors'] as MonitorPanel | undefined;
     monitorPanel?.renderResults(this.ctx.allNews);
+
+    const brandwatchFeedPanel = this.ctx.panels['brandwatch-feed'] as BrandwatchFeedPanel | undefined;
+    const brandwatchQueriesPanel = this.ctx.panels['brandwatch-queries'] as BrandwatchQueriesPanel | undefined;
+    const weakSignalsPanel = this.ctx.panels['weak-signals'] as WeakSignalsPanel | undefined;
+    const threatMatrixPanel = this.ctx.panels['threat-matrix'] as ThreatMatrixPanel | undefined;
+    const mentionTrendsPanel = this.ctx.panels['mention-trends'] as MentionTrendsPanel | undefined;
+
+    if (!brandwatchFeedPanel && !brandwatchQueriesPanel && !weakSignalsPanel && !threatMatrixPanel && !mentionTrendsPanel) {
+      return;
+    }
+
+    const snapshot = buildBrandwatchSnapshot(this.ctx.allNews);
+    brandwatchFeedPanel?.update(snapshot);
+    weakSignalsPanel?.update(snapshot);
+    threatMatrixPanel?.update(snapshot);
+    mentionTrendsPanel?.update(snapshot);
+
+    const enabledBrandwatchQueries = loadBrandwatchQueries().filter((query) => query.enabled);
+    brandwatchQueriesPanel?.setExecutionState({
+      pending: enabledBrandwatchQueries.length > 0,
+      relayAvailable: true,
+      executedCount: 0,
+      updatedAt: null,
+      queryCounts: {},
+      trendPoints: [],
+      documentItems: [],
+      errors: { ...snapshot.compilationErrors },
+      statusMessage: enabledBrandwatchQueries.length > 0 ? 'Syncing GDELT mention counts...' : undefined,
+    });
+
+    if (enabledBrandwatchQueries.length === 0) {
+      this.ctx.gdeltNewsItems = [];
+      renaultChronologyScreen?.update([...this.ctx.allNews, ...this.ctx.gdeltNewsItems]);
+      return;
+    }
+
+    const requestVersion = ++this.brandwatchGdeltRequestVersion;
+    void this.enrichBrandwatchMonitorResults(snapshot, requestVersion);
+  }
+
+  private async enrichBrandwatchMonitorResults(snapshot: BrandwatchSnapshot, requestVersion: number): Promise<void> {
+    try {
+      const execution = await fetchBrandwatchGdeltExecution(loadBrandwatchQueries());
+      if (this.ctx.isDestroyed || requestVersion !== this.brandwatchGdeltRequestVersion) {
+        return;
+      }
+
+      const mergedSnapshot = {
+        ...snapshot,
+        trendPoints: execution.trendPoints.length > 0 ? execution.trendPoints : snapshot.trendPoints,
+        queryCounts: { ...snapshot.queryCounts, ...execution.queryCounts },
+        compilationErrors: { ...snapshot.compilationErrors, ...execution.errors },
+      };
+
+      this.ctx.gdeltNewsItems = execution.documentItems;
+      this.ctx.renaultChronologyScreen?.update([...this.ctx.allNews, ...this.ctx.gdeltNewsItems]);
+
+      const brandwatchQueriesPanel = this.ctx.panels['brandwatch-queries'] as BrandwatchQueriesPanel | undefined;
+      const mentionTrendsPanel = this.ctx.panels['mention-trends'] as MentionTrendsPanel | undefined;
+
+      mentionTrendsPanel?.update(mergedSnapshot);
+      brandwatchQueriesPanel?.setExecutionState({
+        ...execution,
+        errors: mergedSnapshot.compilationErrors,
+      });
+    } catch (error) {
+      if (this.ctx.isDestroyed || requestVersion !== this.brandwatchGdeltRequestVersion) {
+        return;
+      }
+
+      const brandwatchQueriesPanel = this.ctx.panels['brandwatch-queries'] as BrandwatchQueriesPanel | undefined;
+      brandwatchQueriesPanel?.setExecutionState({
+        pending: false,
+        relayAvailable: false,
+        executedCount: 0,
+        updatedAt: null,
+        queryCounts: {},
+        trendPoints: [],
+        documentItems: [],
+        errors: {
+          ...snapshot.compilationErrors,
+          global: error instanceof Error ? error.message : String(error),
+        },
+        statusMessage: 'GDELT execution failed.',
+      });
+      this.ctx.gdeltNewsItems = [];
+      this.ctx.renaultChronologyScreen?.update([...this.ctx.allNews, ...this.ctx.gdeltNewsItems]);
+    }
   }
 
   async runCorrelationAnalysis(): Promise<void> {
