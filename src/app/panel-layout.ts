@@ -49,6 +49,10 @@ import {
   EscalationCorrelationPanel,
   EconomicCorrelationPanel,
   DisasterCorrelationPanel,
+  OperationsPanel,
+  LeadershipPanel,
+  FrenchPressPanel,
+  CrisisSeverityPanel,
 } from '@/components';
 import { SatelliteFiresPanel } from '@/components/SatelliteFiresPanel';
 import { focusInvestmentOnMap } from '@/services/investments-focus';
@@ -675,6 +679,10 @@ export class PanelLayoutManager implements AppModule {
     this.createPanel('trade-policy', () => new TradePolicyPanel());
     this.createPanel('sanctions-pressure', () => new SanctionsPressurePanel());
     this.createPanel('supply-chain', () => new SupplyChainPanel());
+    this.createPanel('operations', () => new OperationsPanel());
+    this.createPanel('leadership', () => new LeadershipPanel());
+    this.createPanel('frenchpress', () => new FrenchPressPanel());
+    this.createPanel('crisis-severity', () => new CrisisSeverityPanel());
 
     this.createNewsPanel('africa', 'panels.africa');
     this.createNewsPanel('latam', 'panels.latam');

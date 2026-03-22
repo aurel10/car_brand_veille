@@ -145,6 +145,7 @@ import { fetchRenewableEnergyData, fetchEnergyCapacity } from '@/services/renewa
 import { checkMilestones } from '@/services/celebration';
 import { fetchHappinessScores } from '@/services/happiness-data';
 import { buildBrandwatchSnapshot, type BrandwatchSnapshot } from '@/services/brandwatch/engine';
+import type { CrisisSeverityPanel } from '@/components/CrisisSeverityPanel';
 import { fetchBrandwatchGdeltExecution } from '@/services/brandwatch/gdelt';
 import { loadBrandwatchQueries } from '@/services/brandwatch/store';
 import { fetchRenewableInstallations } from '@/services/renewable-installations';
@@ -399,8 +400,8 @@ export class DataLoaderManager implements AppModule {
         tasks.push({ name: 'oil', task: runGuarded('oil', () => this.loadOilAnalytics()) });
       }
 
-      // Trade policy data (FULL and FINANCE only)
-      if (SITE_VARIANT === 'full' || SITE_VARIANT === 'finance' || SITE_VARIANT === 'commodity') {
+      // Trade policy data (FULL, FINANCE, and RENAULT)
+      if (SITE_VARIANT === 'full' || SITE_VARIANT === 'finance' || SITE_VARIANT === 'commodity' || SITE_VARIANT === 'renault') {
         if (shouldLoad('trade-policy')) {
           tasks.push({ name: 'tradePolicy', task: runGuarded('tradePolicy', () => this.loadTradePolicy()) });
         }
@@ -760,9 +761,18 @@ export class DataLoaderManager implements AppModule {
 
   renderNewsForCategory(category: string, items: NewsItem[]): void {
     this.ctx.newsByCategory[category] = items;
+    const filteredItems = this.filterItemsByTimeRange(items);
+
+    // Route to specialized panels (OperationsPanel, LeadershipPanel, FrenchPressPanel)
+    // These are registered in ctx.panels but NOT in ctx.newsPanels
+    const specializedPanel = this.ctx.panels[category];
+    if (specializedPanel && specializedPanel !== this.ctx.newsPanels[category] && 'renderNews' in specializedPanel) {
+      (specializedPanel as { renderNews: (items: NewsItem[]) => void }).renderNews(filteredItems);
+    }
+
+    // Also update the generic NewsPanel if one exists for this category
     const panel = this.ctx.newsPanels[category];
     if (!panel) return;
-    const filteredItems = this.filterItemsByTimeRange(items);
     if (filteredItems.length === 0 && items.length > 0) {
       panel.renderFilteredEmpty(`No items in ${this.getTimeRangeLabel()}`);
       return;
@@ -2440,8 +2450,9 @@ export class DataLoaderManager implements AppModule {
     const weakSignalsPanel = this.ctx.panels['weak-signals'] as WeakSignalsPanel | undefined;
     const threatMatrixPanel = this.ctx.panels['threat-matrix'] as ThreatMatrixPanel | undefined;
     const mentionTrendsPanel = this.ctx.panels['mention-trends'] as MentionTrendsPanel | undefined;
+    const crisisSeverityPanel = this.ctx.panels['crisis-severity'] as CrisisSeverityPanel | undefined;
 
-    if (!brandwatchFeedPanel && !brandwatchQueriesPanel && !weakSignalsPanel && !threatMatrixPanel && !mentionTrendsPanel) {
+    if (!brandwatchFeedPanel && !brandwatchQueriesPanel && !weakSignalsPanel && !threatMatrixPanel && !mentionTrendsPanel && !crisisSeverityPanel) {
       return;
     }
 
@@ -2450,6 +2461,7 @@ export class DataLoaderManager implements AppModule {
     weakSignalsPanel?.update(snapshot);
     threatMatrixPanel?.update(snapshot);
     mentionTrendsPanel?.update(snapshot);
+    crisisSeverityPanel?.update(snapshot);
 
     const enabledBrandwatchQueries = loadBrandwatchQueries().filter((query) => query.enabled);
     brandwatchQueriesPanel?.setExecutionState({

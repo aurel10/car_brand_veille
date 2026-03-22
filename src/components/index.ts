@@ -69,3 +69,7 @@ export * from './MilitaryCorrelationPanel';
 export * from './EscalationCorrelationPanel';
 export * from './EconomicCorrelationPanel';
 export * from './DisasterCorrelationPanel';
+export * from './OperationsPanel';
+export * from './LeadershipPanel';
+export * from './FrenchPressPanel';
+export * from './CrisisSeverityPanel';
