@@ -72,4 +72,6 @@ export * from './DisasterCorrelationPanel';
 export * from './OperationsPanel';
 export * from './LeadershipPanel';
 export * from './FrenchPressPanel';
+export * from './AfpWirePanel';
+export * from './AfpWireScreenPanel';
 export * from './CrisisSeverityPanel';

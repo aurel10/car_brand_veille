@@ -145,6 +145,9 @@ import { fetchRenewableEnergyData, fetchEnergyCapacity } from '@/services/renewa
 import { checkMilestones } from '@/services/celebration';
 import { fetchHappinessScores } from '@/services/happiness-data';
 import { buildBrandwatchSnapshot, type BrandwatchSnapshot } from '@/services/brandwatch/engine';
+import { getAfpSeedData, fetchAfpDirect, flattenAfpToNewsItems } from '@/services/afp-wire';
+import type { AfpWirePanel, AfpWireArticle } from '@/components/AfpWirePanel';
+import type { AfpWireScreenPanel } from '@/components/AfpWireScreenPanel';
 import type { CrisisSeverityPanel } from '@/components/CrisisSeverityPanel';
 import { fetchBrandwatchGdeltExecution } from '@/services/brandwatch/gdelt';
 import { loadBrandwatchQueries } from '@/services/brandwatch/store';
@@ -1077,7 +1080,35 @@ export class DataLoaderManager implements AppModule {
     this.ctx.allNews = collectedNews;
     this.ctx.initialLoadComplete = true;
     mountCommunityWidget();
-    this.ctx.renaultChronologyScreen?.update([...this.ctx.allNews, ...this.ctx.gdeltNewsItems]);
+
+    // Hydrate AFP wire news from bootstrap cache (or direct fetch fallback)
+    const afpWirePanel = this.ctx.panels['afp-wire'] as AfpWirePanel | undefined;
+    const afpWireScreen = this.ctx.afpWireScreen as AfpWireScreenPanel | undefined;
+    const hydrateAfp = (afpData: import('@/services/afp-wire').AfpSeedData) => {
+      this.ctx.afpNewsItems = flattenAfpToNewsItems(afpData);
+      const afpArticles = afpData.queries.flatMap(q =>
+        (q.articles || []).map(a => ({ ...a, category: q.category }) as AfpWireArticle)
+      );
+      afpWirePanel?.renderAfpArticles(afpArticles);
+      afpWireScreen?.update(afpArticles);
+    };
+
+    const afpData = getAfpSeedData();
+    if (afpData) {
+      hydrateAfp(afpData);
+    } else {
+      // No bootstrap data — try direct AFP fetch (works in dev mode)
+      fetchAfpDirect().then(directData => {
+        if (directData) {
+          hydrateAfp(directData);
+        } else {
+          afpWirePanel?.renderAfpArticles([]);
+          afpWireScreen?.update([]);
+        }
+      });
+    }
+
+    this.ctx.renaultChronologyScreen?.update([...this.ctx.allNews, ...this.ctx.gdeltNewsItems, ...this.ctx.afpNewsItems]);
 
     this.ctx.map?.updateHotspotActivity(this.ctx.allNews);
 
@@ -2440,7 +2471,7 @@ export class DataLoaderManager implements AppModule {
 
   updateMonitorResults(): void {
     const renaultChronologyScreen = this.ctx.renaultChronologyScreen as RenaultChronologyScreen | null;
-    renaultChronologyScreen?.update([...this.ctx.allNews, ...this.ctx.gdeltNewsItems]);
+    renaultChronologyScreen?.update([...this.ctx.allNews, ...this.ctx.gdeltNewsItems, ...this.ctx.afpNewsItems]);
 
     const monitorPanel = this.ctx.panels['monitors'] as MonitorPanel | undefined;
     monitorPanel?.renderResults(this.ctx.allNews);
@@ -2456,7 +2487,7 @@ export class DataLoaderManager implements AppModule {
       return;
     }
 
-    const snapshot = buildBrandwatchSnapshot(this.ctx.allNews);
+    const snapshot = buildBrandwatchSnapshot([...this.ctx.allNews, ...this.ctx.afpNewsItems]);
     brandwatchFeedPanel?.update(snapshot);
     weakSignalsPanel?.update(snapshot);
     threatMatrixPanel?.update(snapshot);
@@ -2478,7 +2509,7 @@ export class DataLoaderManager implements AppModule {
 
     if (enabledBrandwatchQueries.length === 0) {
       this.ctx.gdeltNewsItems = [];
-      renaultChronologyScreen?.update([...this.ctx.allNews, ...this.ctx.gdeltNewsItems]);
+      renaultChronologyScreen?.update([...this.ctx.allNews, ...this.ctx.gdeltNewsItems, ...this.ctx.afpNewsItems]);
       return;
     }
 
@@ -2501,7 +2532,7 @@ export class DataLoaderManager implements AppModule {
       };
 
       this.ctx.gdeltNewsItems = execution.documentItems;
-      this.ctx.renaultChronologyScreen?.update([...this.ctx.allNews, ...this.ctx.gdeltNewsItems]);
+      this.ctx.renaultChronologyScreen?.update([...this.ctx.allNews, ...this.ctx.gdeltNewsItems, ...this.ctx.afpNewsItems]);
 
       const brandwatchQueriesPanel = this.ctx.panels['brandwatch-queries'] as BrandwatchQueriesPanel | undefined;
       const mentionTrendsPanel = this.ctx.panels['mention-trends'] as MentionTrendsPanel | undefined;
@@ -2532,7 +2563,7 @@ export class DataLoaderManager implements AppModule {
         statusMessage: 'GDELT execution failed.',
       });
       this.ctx.gdeltNewsItems = [];
-      this.ctx.renaultChronologyScreen?.update([...this.ctx.allNews, ...this.ctx.gdeltNewsItems]);
+      this.ctx.renaultChronologyScreen?.update([...this.ctx.allNews, ...this.ctx.gdeltNewsItems, ...this.ctx.afpNewsItems]);
     }
   }
 

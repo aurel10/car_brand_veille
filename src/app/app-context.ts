@@ -34,11 +34,13 @@ export interface AppContext {
   newsPanels: Record<string, import('@/components').NewsPanel>;
   panelSettings: Record<string, PanelConfig>;
   renaultChronologyScreen: import('@/components').RenaultChronologyScreen | null;
+  afpWireScreen: import('@/components').AfpWireScreenPanel | null;
 
   mapLayers: MapLayers;
 
   allNews: NewsItem[];
   gdeltNewsItems: NewsItem[];
+  afpNewsItems: NewsItem[];
   newsByCategory: Record<string, NewsItem[]>;
   latestMarkets: MarketData[];
   latestPredictions: import('@/services/prediction').PredictionMarket[];

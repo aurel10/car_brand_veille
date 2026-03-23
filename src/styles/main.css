@@ -898,6 +898,51 @@ canvas,
   width: 100%;
 }
 
+/* ── Renault variant visual identity ─────────────────────────────────────── */
+[data-variant="renault"] {
+  --accent: #ffcc00;
+  --bg: #080808;
+  --bg-secondary: #0e0e0e;
+  --surface: #111111;
+  --surface-hover: #181818;
+  --border: #252525;
+  --map-bg: #050505;
+  --map-grid: #0d0d0d;
+  --map-country: #0a0a0a;
+  --map-stroke: #1a1a1a;
+}
+
+[data-variant="renault"] .logo,
+[data-variant="renault"] .logo-mobile {
+  color: #ffcc00;
+  letter-spacing: 0.12em;
+}
+
+[data-variant="renault"] .header {
+  border-bottom: 1px solid #1e1a00;
+  background: #080808;
+}
+
+[data-variant="renault"] .variant-option.active .variant-icon,
+[data-variant="renault"] .variant-option.active .variant-label {
+  color: #ffcc00;
+}
+
+[data-variant="renault"] .site-footer {
+  border-top: 1px solid #1e1a00;
+}
+
+[data-variant="renault"] .site-footer-name {
+  color: #ffcc00;
+}
+
+[data-variant="renault"] .renault-view-btn.active,
+[data-variant="renault"] .renault-view-btn:hover {
+  border-color: #ffcc00;
+  color: #ffcc00;
+  background: rgba(255, 204, 0, 0.08);
+}
+
 .renault-view-hidden {
   display: none !important;
 }

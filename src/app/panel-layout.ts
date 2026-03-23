@@ -19,6 +19,7 @@ import {
   ThreatMatrixPanel,
   MentionTrendsPanel,
   RenaultChronologyScreen,
+  AfpWireScreenPanel,
   EconomicPanel,
   EnergyComplexPanel,
   GdeltIntelPanel,
@@ -52,6 +53,7 @@ import {
   OperationsPanel,
   LeadershipPanel,
   FrenchPressPanel,
+  AfpWirePanel,
   CrisisSeverityPanel,
 } from '@/components';
 import { SatelliteFiresPanel } from '@/components/SatelliteFiresPanel';
@@ -214,7 +216,7 @@ export class PanelLayoutManager implements AppModule {
             <span class="variant-label">Good News</span>
           </a>`;
       })()}</div>
-          <span class="logo">MONITOR</span><span class="logo-mobile">${isRenaultVariant ? 'Renault Monitor' : 'World Monitor'}</span>${isRenaultVariant ? '' : `<span class="version">v${__APP_VERSION__}</span>${BETA_MODE ? '<span class="beta-badge">BETA</span>' : ''}`}
+          <span class="logo">${isRenaultVariant ? 'VEILLE' : 'MONITOR'}</span><span class="logo-mobile">${isRenaultVariant ? 'Renault Veille' : 'World Monitor'}</span>${isRenaultVariant ? '' : `<span class="version">v${__APP_VERSION__}</span>${BETA_MODE ? '<span class="beta-badge">BETA</span>' : ''}`}
           ${isRenaultVariant ? '' : `<a href="https://x.com/eliehabib" target="_blank" rel="noopener" class="credit-link">
             <svg class="x-logo" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
             <span class="credit-text">@eliehabib</span>
@@ -244,6 +246,7 @@ export class PanelLayoutManager implements AppModule {
           ${isRenaultVariant ? `<div class="renault-view-toggle" id="renaultViewToggle">
             <button class="renault-view-btn" data-view="dashboard">Dashboard</button>
             <button class="renault-view-btn" data-view="wire">News Wire</button>
+            <button class="renault-view-btn" data-view="afp">AFP Wire</button>
           </div>` : ''}
           <button class="mobile-search-btn" id="mobileSearchBtn" aria-label="${t('header.search')}">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
@@ -371,15 +374,15 @@ export class PanelLayoutManager implements AppModule {
         <button class="search-mobile-fab" id="searchMobileFab" aria-label="Search">\u{1F50D}</button>
       </div>
       ${isRenaultVariant ? '<div class="renault-chronology-view renault-view-hidden" id="renaultChronologyView"></div>' : ''}
+      ${isRenaultVariant ? '<div class="renault-chronology-view renault-view-hidden" id="renaultAfpView"></div>' : ''}
       <footer class="site-footer">
         <div class="site-footer-brand">
-          <img src="/favico/favicon-32x32.png" alt="" width="28" height="28" class="site-footer-icon" />
           <div class="site-footer-brand-text">
-            <span class="site-footer-name">WORLD MONITOR</span>
-            <span class="site-footer-sub">by Someone.ceo</span>
+            <span class="site-footer-name">${isRenaultVariant ? 'RENAULT VEILLE' : 'WORLD MONITOR'}</span>
+            <span class="site-footer-sub">${isRenaultVariant ? 'Intelligence Crise' : 'by Someone.ceo'}</span>
           </div>
         </div>
-        <nav>
+        ${isRenaultVariant ? '' : `<nav>
           <a href="${this.ctx.isDesktopApp ? 'https://worldmonitor.app/pro' : 'https://www.worldmonitor.app/pro'}" target="_blank" rel="noopener">Pro</a>
           <a href="${this.ctx.isDesktopApp ? 'https://worldmonitor.app/blog/' : 'https://www.worldmonitor.app/blog/'}" target="_blank" rel="noopener">Blog</a>
           <a href="${this.ctx.isDesktopApp ? 'https://worldmonitor.app/docs' : 'https://www.worldmonitor.app/docs'}" target="_blank" rel="noopener">Docs</a>
@@ -387,8 +390,8 @@ export class PanelLayoutManager implements AppModule {
           <a href="https://github.com/koala73/worldmonitor" target="_blank" rel="noopener">GitHub</a>
           <a href="https://github.com/koala73/worldmonitor/discussions" target="_blank" rel="noopener">Discussions</a>
           <a href="https://x.com/worldmonitorai" target="_blank" rel="noopener">X</a>
-        </nav>
-        <span class="site-footer-copy">&copy; ${new Date().getFullYear()} World Monitor</span>
+        </nav>`}
+        <span class="site-footer-copy">&copy; ${new Date().getFullYear()} ${isRenaultVariant ? 'Renault Group' : 'World Monitor'}</span>
       </footer>
     `;
 
@@ -402,21 +405,25 @@ export class PanelLayoutManager implements AppModule {
     }
   }
 
-  private getRenaultViewMode(): 'dashboard' | 'wire' {
+  private getRenaultViewMode(): 'dashboard' | 'wire' | 'afp' {
     if (SITE_VARIANT !== 'renault') return 'dashboard';
     const stored = loadFromStorage<string>(PanelLayoutManager.RENAULT_VIEW_STORAGE_KEY, 'dashboard');
-    return stored === 'wire' ? 'wire' : 'dashboard';
+    if (stored === 'wire') return 'wire';
+    if (stored === 'afp') return 'afp';
+    return 'dashboard';
   }
 
-  private applyRenaultViewMode(mode: 'dashboard' | 'wire'): void {
+  private applyRenaultViewMode(mode: 'dashboard' | 'wire' | 'afp'): void {
     if (SITE_VARIANT !== 'renault') return;
 
     const mainContent = document.getElementById('mainContent');
     const chronologyView = document.getElementById('renaultChronologyView');
+    const afpView = document.getElementById('renaultAfpView');
     if (!mainContent || !chronologyView) return;
 
     mainContent.classList.toggle('renault-view-hidden', mode !== 'dashboard');
     chronologyView.classList.toggle('renault-view-hidden', mode !== 'wire');
+    afpView?.classList.toggle('renault-view-hidden', mode !== 'afp');
 
     document.querySelectorAll<HTMLButtonElement>('.renault-view-btn').forEach((button) => {
       button.classList.toggle('active', button.dataset.view === mode);
@@ -433,7 +440,8 @@ export class PanelLayoutManager implements AppModule {
 
     document.querySelectorAll<HTMLButtonElement>('.renault-view-btn').forEach((button) => {
       button.addEventListener('click', () => {
-        const nextMode = button.dataset.view === 'wire' ? 'wire' : 'dashboard';
+        const v = button.dataset.view;
+        const nextMode: 'dashboard' | 'wire' | 'afp' = v === 'wire' ? 'wire' : v === 'afp' ? 'afp' : 'dashboard';
         this.applyRenaultViewMode(nextMode);
       });
     });
@@ -646,6 +654,13 @@ export class PanelLayoutManager implements AppModule {
         this.ctx.renaultChronologyScreen = chronologyScreen;
         chronologyHost.appendChild(chronologyScreen.getElement());
       }
+
+      const afpViewHost = document.getElementById('renaultAfpView');
+      if (afpViewHost) {
+        const afpScreen = new AfpWireScreenPanel();
+        this.ctx.afpWireScreen = afpScreen;
+        afpViewHost.appendChild(afpScreen.getElement());
+      }
     }
 
     this.createPanel('commodities', () => new CommoditiesPanel());
@@ -682,6 +697,7 @@ export class PanelLayoutManager implements AppModule {
     this.createPanel('operations', () => new OperationsPanel());
     this.createPanel('leadership', () => new LeadershipPanel());
     this.createPanel('frenchpress', () => new FrenchPressPanel());
+    this.createPanel('afp-wire', () => new AfpWirePanel());
     this.createPanel('crisis-severity', () => new CrisisSeverityPanel());
 
     this.createNewsPanel('africa', 'panels.africa');

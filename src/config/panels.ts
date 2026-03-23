@@ -849,6 +849,7 @@ const RENAULT_PANELS: Record<string, PanelConfig> = {
   leadership: { name: 'Leadership Watch', enabled: true, priority: 2 },
   regulation: { name: 'Regulation & Safety', enabled: true, priority: 2 },
   frenchpress: { name: 'French Press', enabled: true, priority: 2 },
+  'afp-wire': { name: 'AFP Wire', enabled: true, priority: 1 },
 };
 
 const RENAULT_MAP_LAYERS: MapLayers = {

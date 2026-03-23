@@ -54,6 +54,7 @@ const SEED_DOMAINS = {
   'thermal:escalation':       { key: 'seed-meta:thermal:escalation',       intervalMin: 180 },
   'radiation:observations':   { key: 'seed-meta:radiation:observations',   intervalMin: 15 },
   'sanctions:pressure':       { key: 'seed-meta:sanctions:pressure',       intervalMin: 360 },
+  'intelligence:afp-renault': { key: 'seed-meta:intelligence:afp-renault', intervalMin: 120 },
 };
 
 async function getMetaBatch(keys) {

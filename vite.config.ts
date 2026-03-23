@@ -448,6 +448,123 @@ const RSS_PROXY_ALLOWED_DOMAINS = new Set([
   'www.sciencedaily.com', 'feeds.nature.com', 'www.livescience.com', 'www.newscientist.com',
 ]);
 
+/**
+ * Dev-only plugin: serves /api/afp-direct by fetching AFP articles server-side.
+ * Uses AFP credentials from .env.local (not exposed to browser).
+ */
+function afpDevPlugin(): Plugin {
+  const AFP_API = 'https://afp-apicore-prod.afp.com';
+  let cachedToken: { accessToken: string; expiresAt: number } | null = null;
+  let cachedResult: { data: string; timestamp: number } | null = null;
+  const CACHE_TTL = 10 * 60_000; // 10min cache
+
+  return {
+    name: 'afp-dev',
+    apply: 'serve',
+    configureServer(server) {
+      server.middlewares.use(async (req, res, next) => {
+        if (req.url !== '/api/afp-direct') return next();
+
+        // Return cached if fresh
+        if (cachedResult && Date.now() - cachedResult.timestamp < CACHE_TTL) {
+          res.statusCode = 200;
+          res.setHeader('Content-Type', 'application/json');
+          res.end(cachedResult.data);
+          return;
+        }
+
+        const clientId = (process.env.AFP_CLIENT_ID || '').trim();
+        const clientSecret = (process.env.AFP_CLIENT_SECRET || '').trim();
+        const username = (process.env.AFP_USERNAME || '').trim();
+        const password = (process.env.AFP_PASSWORD || '').trim();
+
+        if (!clientId || !clientSecret || !username || !password) {
+          res.statusCode = 200;
+          res.setHeader('Content-Type', 'application/json');
+          res.end(JSON.stringify({ queries: [], alerts: [], summary: { totalQueries: 0, totalArticles: 0 }, fetchedAt: new Date().toISOString() }));
+          return;
+        }
+
+        try {
+          // Get token
+          if (!cachedToken || Date.now() >= cachedToken.expiresAt) {
+            const basicAuth = Buffer.from(`${clientId}:${clientSecret}`).toString('base64');
+            const tokenResp = await fetch(`${AFP_API}/oauth/token`, {
+              method: 'POST',
+              headers: { Authorization: `Basic ${basicAuth}`, 'Content-Type': 'application/x-www-form-urlencoded', Accept: 'application/json' },
+              body: new URLSearchParams({ grant_type: 'password', username, password }),
+              signal: AbortSignal.timeout(15_000),
+            });
+            if (!tokenResp.ok) throw new Error(`AFP auth failed: ${tokenResp.status}`);
+            const tokenData = await tokenResp.json() as { access_token: string; expires_in?: number };
+            cachedToken = { accessToken: tokenData.access_token, expiresAt: Date.now() + ((tokenData.expires_in || 3600) * 1000) - 60_000 };
+          }
+
+          const token = cachedToken.accessToken;
+          const queries = [
+            { id: 'afp-sentiment-all', category: 'sentiment', priority: 'medium', label: 'All Renault coverage',
+              query: { and: [{ name: 'class', and: ['text'] }, { name: 'entity_company', and: ['Renault'] }] },
+              dateRange: { from: 'now-7d', to: 'now' }, maxRows: 50 },
+            { id: 'afp-finance-results', category: 'financial', priority: 'critical', label: 'Financial results & market', lang: 'fr',
+              query: { and: [{ name: 'class', and: ['text'] }, { name: 'entity_company', and: ['Renault'] }, { name: 'news', in: ['résultats', 'bénéfice', 'perte', 'Bourse', 'cours', 'action'] }] },
+              dateRange: { from: 'now-7d', to: 'now' }, maxRows: 50 },
+            { id: 'afp-geo-industry', category: 'geopolitical', priority: 'high', label: 'Auto industry & competition', lang: 'fr',
+              query: { and: [{ name: 'class', and: ['text'] }, { name: 'entity_company', and: ['Renault'] }, { name: 'keyword', in: ['automobile', 'industrie'] }] },
+              dateRange: { from: 'now-7d', to: 'now' }, maxRows: 50 },
+            { id: 'afp-legal-proceedings', category: 'legal', priority: 'medium', label: 'Court proceedings & lawsuits', lang: 'fr',
+              query: { and: [{ name: 'class', and: ['text'] }, { name: 'entity_company', and: ['Renault'] }, { name: 'news', in: ['procès', 'tribunal', 'enquête', 'amende', 'justice'] }] },
+              dateRange: { from: 'now-7d', to: 'now' }, maxRows: 50 },
+          ];
+
+          const results = [];
+          for (const q of queries) {
+            try {
+              const body: Record<string, unknown> = { dateRange: q.dateRange, sortOrder: 'desc', sortField: 'published', maxRows: String(q.maxRows), query: q.query };
+              if (q.lang) body.lang = q.lang;
+              const searchResp = await fetch(`${AFP_API}/v1/api/search`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', Accept: 'application/json', Authorization: `Bearer ${token}` },
+                body: JSON.stringify(body),
+                signal: AbortSignal.timeout(20_000),
+              });
+              const data = await searchResp.json() as { response?: { docs?: Array<Record<string, unknown>> } };
+              const docs = data.response?.docs || [];
+              const articles = docs.map((doc: Record<string, unknown>) => {
+                const title = String(doc.title || doc.headline || '');
+                if (!title) return null;
+                const rawUrg = String(doc.urgency || '4');
+                return {
+                  title, url: doc.href || '', source: 'AFP',
+                  date: String(doc.published || doc.created || ''),
+                  image: '', language: String(doc.lang || doc.language || ''),
+                  tone: 0, urgency: parseInt(rawUrg, 10) || 4,
+                  iptcCodes: [] as string[], slug: String(doc.slug || ''),
+                  afpId: String(doc.uno || doc.guid || ''),
+                  country: String(doc.country || ''), product: String(doc.product || 'text'),
+                  abstract: String(doc.abstract || ''),
+                };
+              }).filter(Boolean);
+              results.push({ id: q.id, category: q.category, priority: q.priority, label: q.label, lang: q.lang || '', articles, articleCount: articles.length, fetchedAt: new Date().toISOString() });
+            } catch { results.push({ id: q.id, category: q.category, priority: q.priority, label: q.label, lang: q.lang || '', articles: [], articleCount: 0, fetchedAt: new Date().toISOString(), error: 'fetch failed' }); }
+            await new Promise(r => setTimeout(r, 1500)); // rate limit
+          }
+
+          const payload = JSON.stringify({ queries: results, alerts: [], summary: { totalQueries: results.length, totalArticles: results.reduce((s, r) => s + r.articleCount, 0) }, fetchedAt: new Date().toISOString() });
+          cachedResult = { data: payload, timestamp: Date.now() };
+          res.statusCode = 200;
+          res.setHeader('Content-Type', 'application/json');
+          res.end(payload);
+        } catch (err: unknown) {
+          console.error('[afp-dev]', err instanceof Error ? err.message : err);
+          res.statusCode = 200;
+          res.setHeader('Content-Type', 'application/json');
+          res.end(JSON.stringify({ queries: [], alerts: [], summary: { totalQueries: 0, totalArticles: 0 }, fetchedAt: new Date().toISOString() }));
+        }
+      });
+    },
+  };
+}
+
 function rssProxyPlugin(): Plugin {
   return {
     name: 'rss-proxy',
@@ -616,6 +733,7 @@ export default defineConfig(({ mode }) => {
     plugins: [
       htmlVariantPlugin(activeMeta, activeVariant, isDesktopBuild),
       polymarketPlugin(),
+      afpDevPlugin(),
       rssProxyPlugin(),
       youtubeLivePlugin(),
       gpsjamDevPlugin(),
