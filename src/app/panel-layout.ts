@@ -587,6 +587,7 @@ export class PanelLayoutManager implements AppModule {
     const panelsGrid = document.getElementById('panelsGrid')!;
 
     const mapContainer = document.getElementById('mapContainer') as HTMLElement;
+    if (SITE_VARIANT === 'renault') mapContainer.classList.add('renault-basemap');
     const preferGlobe = loadFromStorage<string>(STORAGE_KEYS.mapMode, 'flat') === 'globe';
     this.ctx.map = new MapContainer(mapContainer, {
       zoom: this.ctx.isMobile ? 2.5 : 1.0,

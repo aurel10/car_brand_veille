@@ -39,6 +39,7 @@ import { toApiUrl } from '@/services/runtime';
 import type { StrategicPosturePanel } from '@/components/StrategicPosturePanel';
 import type { NewsItem } from '@/types';
 import { getNearbyInfrastructure } from '@/services/related-assets';
+import { SITE_VARIANT } from '@/config/variant';
 import { toFlagEmoji } from '@/utils/country-flag';
 
 type IntlDisplayNamesCtor = new (
@@ -189,7 +190,9 @@ export class CountryIntelManager implements AppModule {
       });
     }
     this.ctx.countryBriefPage.updateSignalDetails?.(this.buildSignalDetails(code));
-    this.ctx.countryBriefPage.updateMilitaryActivity?.(this.buildMilitarySummary(code, country));
+    if (SITE_VARIANT !== 'renault') {
+      this.ctx.countryBriefPage.updateMilitaryActivity?.(this.buildMilitarySummary(code, country));
+    }
     this.ctx.countryBriefPage.updateEconomicIndicators?.(this.buildEconomicIndicators(code, score, null));
 
     const marketClient = new MarketServiceClient(getRpcBaseUrl(), { fetch: (...args: Parameters<typeof globalThis.fetch>) => globalThis.fetch(...args) });
@@ -237,7 +240,9 @@ export class CountryIntelManager implements AppModule {
     });
     this.ctx.countryBriefPage.updateNews(filteredNews.slice(0, 10));
 
-    this.ctx.countryBriefPage.updateInfrastructure(code);
+    if (SITE_VARIANT !== 'renault') {
+      this.ctx.countryBriefPage.updateInfrastructure(code);
+    }
 
     const intelClient = new IntelligenceServiceClient(getRpcBaseUrl(), {
       fetch: (...args: Parameters<typeof globalThis.fetch>) => globalThis.fetch(...args),
@@ -499,7 +504,7 @@ export class CountryIntelManager implements AppModule {
       }
     }
 
-    if (this.ctx.intelligenceCache.military) {
+    if (SITE_VARIANT !== 'renault' && this.ctx.intelligenceCache.military) {
       for (const f of this.ctx.intelligenceCache.military.flights) {
         if (hasGeoShape ? this.isInCountry(f.lat, f.lon, code) : f.operatorCountry?.toUpperCase() === code) {
           events.push({

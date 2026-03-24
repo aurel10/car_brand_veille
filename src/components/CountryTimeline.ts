@@ -2,6 +2,7 @@ import * as d3 from 'd3';
 import { escapeHtml } from '@/utils/sanitize';
 import { getCSSColor } from '@/utils';
 import { t } from '@/services/i18n';
+import { SITE_VARIANT } from '@/config/variant';
 
 export interface TimelineEvent {
   timestamp: number;
@@ -10,7 +11,10 @@ export interface TimelineEvent {
   severity?: 'low' | 'medium' | 'high' | 'critical';
 }
 
-const LANES: TimelineEvent['lane'][] = ['protest', 'conflict', 'natural', 'military'];
+const ALL_LANES: TimelineEvent['lane'][] = ['protest', 'conflict', 'natural', 'military'];
+const LANES: TimelineEvent['lane'][] = SITE_VARIANT === 'renault'
+  ? ALL_LANES.filter(l => l !== 'military')
+  : ALL_LANES;
 
 const LANE_COLORS: Record<TimelineEvent['lane'], string> = {
   protest: '#ffaa00',

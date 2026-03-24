@@ -6,25 +6,25 @@
    ============================================================ */
 :root {
   /* Backgrounds */
-  --bg: #0a0a0a;
-  --bg-secondary: #111;
-  --surface: #141414;
-  --surface-hover: #1e1e1e;
-  --surface-active: #1a1a2e;
+  --bg: #0f1115;
+  --bg-secondary: #16181d;
+  --surface: #1c1f26;
+  --surface-hover: #232730;
+  --surface-active: #2a2f3a;
 
   /* Borders */
-  --border: #2a2a2a;
-  --border-strong: #444;
-  --border-subtle: #1a1a1a;
+  --border: #2e323e;
+  --border-strong: #3d4351;
+  --border-subtle: #1f222a;
 
   /* Text */
-  --text: #e8e8e8;
-  --text-secondary: #ccc;
-  --text-dim: #888;
-  --text-muted: #666;
-  --text-faint: #555;
-  --text-ghost: #444;
-  --accent: #fff;
+  --text: #f0f2f5;
+  --text-secondary: #a0a6b5;
+  --text-dim: #737a8c;
+  --text-muted: #595f70;
+  --text-faint: #474d5b;
+  --text-ghost: #363a45;
+  --accent: #ffffff;
 
   /* Overlays & shadows */
   --overlay-subtle: rgba(255, 255, 255, 0.03);
@@ -37,26 +37,27 @@
   --darken-heavy: rgba(0, 0, 0, 0.3);
 
   /* Scrollbar */
-  --scrollbar-thumb: #333;
-  --scrollbar-thumb-hover: #555;
+  --scrollbar-thumb: #3a3f4c;
+  --scrollbar-thumb-hover: #505769;
 
   /* Input */
-  --input-bg: #1a1a1a;
+  --input-bg: #16181d;
 
   /* Panels */
-  --panel-bg: #141414;
-  --panel-border: #2a2a2a;
+  --panel-bg: #1c1f26;
+  --panel-border: #2e323e;
 
   /* Map */
-  --map-bg: #020a08;
-  --map-grid: #0a2a20;
-  --map-country: #0a2018;
-  --map-stroke: #0f5040;
+  --map-bg: #0b0d10;
+  --map-grid: #13171d;
+  --map-country: #11141a;
+  --map-stroke: #1e2430;
 
   /* Font stack */
   --font-mono: 'SF Mono', 'Monaco', 'Cascadia Code', 'Fira Code', 'DejaVu Sans Mono', 'Liberation Mono', monospace;
-  /* Base body font, controlled by font preference (mono vs system) */
-  --font-body-base: var(--font-mono);
+  --font-sans: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  /* Base body font */
+  --font-body-base: var(--font-sans);
   /* Effective body font used throughout the app */
   --font-body: var(--font-body-base);
 }
@@ -142,16 +143,16 @@
   /* Tailwind amber-600 (was #ffaa00) */
 
   /* Backgrounds */
-  --bg: #f8f9fa;
-  --bg-secondary: #f0f1f3;
+  --bg: #f8fafc;
+  --bg-secondary: #f1f5f9;
   --surface: #ffffff;
   --surface-hover: #f0f0f0;
   --surface-active: #e8e8f0;
 
   /* Borders */
-  --border: #d4d4d4;
-  --border-strong: #b0b0b0;
-  --border-subtle: #e8e8e8;
+  --border: #e2e8f0;
+  --border-strong: #cbd5e1;
+  --border-subtle: #f1f5f9;
 
   /* Text */
   --text: #1a1a1a;
@@ -178,11 +179,11 @@
   --scrollbar-thumb-hover: #999;
 
   /* Input */
-  --input-bg: #f0f0f0;
+  --input-bg: #f1f5f9;
 
   /* Panels */
   --panel-bg: #ffffff;
-  --panel-border: #d4d4d4;
+  --panel-border: #e2e8f0;
 
   /* Map */
   --map-bg: #e8f0f8;
@@ -205,7 +206,7 @@ html {
 
 body {
   font-family: var(--font-body);
-  font-size: 12px;
+  font-size: 13px;
   line-height: 1.5;
   background: var(--bg);
   color: var(--text);
@@ -14768,6 +14769,16 @@ a.prediction-link:hover {
   /* Let MapLibre handle all touch gestures (pinch-zoom, pan, rotate)
      instead of the browser intercepting them for page zoom on Android */
   touch-action: none;
+}
+
+/* Blue-tinted basemap for renault variant - shifts dark tiles to midnight blue */
+.renault-basemap #deckgl-basemap .maplibregl-canvas {
+  filter: hue-rotate(195deg) saturate(2.2) brightness(1.15);
+}
+
+/* Also apply to SVG fallback map */
+.renault-basemap .map-svg .map-base {
+  filter: hue-rotate(195deg) saturate(2.2) brightness(1.15);
 }
 
 #deckgl-overlay {

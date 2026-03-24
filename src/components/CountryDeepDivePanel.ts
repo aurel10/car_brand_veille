@@ -11,6 +11,7 @@ import { getCSSColor } from '@/utils';
 import { toFlagEmoji } from '@/utils/country-flag';
 import { PORTS } from '@/config/ports';
 import { haversineDistanceKm } from '@/services/related-assets';
+import { SITE_VARIANT } from '@/config/variant';
 import type {
   CountryBriefPanel,
   CountryIntelData,
@@ -693,11 +694,10 @@ export class CountryDeepDivePanel implements CountryBriefPanel {
     }
 
     const bodyGrid = this.el('div', 'cdp-grid');
+    const isRenault = SITE_VARIANT === 'renault';
     const [signalsCard, signalBody] = this.sectionCard(t('countryBrief.activeSignals'));
     const [timelineCard, timelineBody] = this.sectionCard(t('countryBrief.timeline'));
     const [newsCard, newsBody] = this.sectionCard(t('countryBrief.topNews'));
-    const [militaryCard, militaryBody] = this.sectionCard(t('countryBrief.militaryActivity'));
-    const [infraCard, infraBody] = this.sectionCard(t('countryBrief.infrastructure'));
     const [economicCard, economicBody] = this.sectionCard(t('countryBrief.economicIndicators'));
     const [marketsCard, marketsBody] = this.sectionCard(t('countryBrief.predictionMarkets'));
     const [briefCard, briefBody] = this.sectionCard(t('countryBrief.intelBrief'));
@@ -712,21 +712,30 @@ export class CountryDeepDivePanel implements CountryBriefPanel {
     this.timelineBody = timelineBody;
     this.timelineBody.classList.add('cdp-timeline-mount');
     this.newsBody = newsBody;
-    this.militaryBody = militaryBody;
-    this.infrastructureBody = infraBody;
     this.economicBody = economicBody;
     this.marketsBody = marketsBody;
     this.briefBody = briefBody;
 
+    // Skip military and infrastructure sections for renault variant
+    if (!isRenault) {
+      const [militaryCard, militaryBody] = this.sectionCard(t('countryBrief.militaryActivity'));
+      const [infraCard, infraBody] = this.sectionCard(t('countryBrief.infrastructure'));
+      this.militaryBody = militaryBody;
+      this.infrastructureBody = infraBody;
+      militaryBody.append(this.makeLoading('Loading flights, vessels, and nearby bases…'));
+      infraBody.append(this.makeLoading('Computing nearby critical infrastructure…'));
+      bodyGrid.append(briefCard, factsExpanded, signalsCard, timelineCard, newsCard, militaryCard, infraCard, economicCard, marketsCard);
+    } else {
+      this.militaryBody = null;
+      this.infrastructureBody = null;
+      bodyGrid.append(briefCard, factsExpanded, signalsCard, timelineCard, newsCard, economicCard, marketsCard);
+    }
+
     this.renderInitialSignals(signals);
     newsBody.append(this.makeLoading('Loading country headlines…'));
-    militaryBody.append(this.makeLoading('Loading flights, vessels, and nearby bases…'));
-    infraBody.append(this.makeLoading('Computing nearby critical infrastructure…'));
     economicBody.append(this.makeLoading('Loading available indicators…'));
     marketsBody.append(this.makeLoading(t('countryBrief.loadingMarkets')));
     briefBody.append(this.makeLoading(t('countryBrief.generatingBrief')));
-
-    bodyGrid.append(briefCard, factsExpanded, signalsCard, timelineCard, newsCard, militaryCard, infraCard, economicCard, marketsCard);
     shell.append(header, scoreCard, bodyGrid);
     this.content.append(shell);
   }
@@ -738,8 +747,10 @@ export class CountryDeepDivePanel implements CountryBriefPanel {
     const chips = this.el('div', 'cdp-signal-chips');
     this.addSignalChip(chips, signals.criticalNews, t('countryBrief.chips.criticalNews'), '🚨', 'conflict');
     this.addSignalChip(chips, signals.protests, t('countryBrief.chips.protests'), '📢', 'protest');
-    this.addSignalChip(chips, signals.militaryFlights, t('countryBrief.chips.militaryAir'), '✈️', 'military');
-    this.addSignalChip(chips, signals.militaryVessels, t('countryBrief.chips.navalVessels'), '⚓', 'military');
+    if (SITE_VARIANT !== 'renault') {
+      this.addSignalChip(chips, signals.militaryFlights, t('countryBrief.chips.militaryAir'), '✈️', 'military');
+      this.addSignalChip(chips, signals.militaryVessels, t('countryBrief.chips.navalVessels'), '⚓', 'military');
+    }
     this.addSignalChip(chips, signals.outages, t('countryBrief.chips.outages'), '🌐', 'outage');
     this.addSignalChip(chips, signals.aisDisruptions, t('countryBrief.chips.aisDisruptions'), '🚢', 'outage');
     this.addSignalChip(chips, signals.satelliteFires, t('countryBrief.chips.satelliteFires'), '🔥', 'climate');
