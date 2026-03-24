@@ -21,6 +21,49 @@ const { createSocialMonitorRelay } = require('./social-monitor-relay.cjs');
 
 const httpsKeepAliveAgent = new https.Agent({ keepAlive: true, maxSockets: 6, timeout: 60_000 });
 
+function loadEnvFileIntoProcess(envPath) {
+  try {
+    const raw = readFileSync(envPath, 'utf8');
+    for (const line of raw.split(/\r?\n/)) {
+      const trimmed = line.trim();
+      if (!trimmed || trimmed.startsWith('#')) continue;
+      const eqIndex = trimmed.indexOf('=');
+      if (eqIndex <= 0) continue;
+      const key = trimmed.slice(0, eqIndex).trim();
+      if (!key || process.env[key]) continue;
+      let value = trimmed.slice(eqIndex + 1).trim();
+      if (
+        (value.startsWith('"') && value.endsWith('"'))
+        || (value.startsWith("'") && value.endsWith("'"))
+      ) {
+        value = value.slice(1, -1);
+      }
+      process.env[key] = value;
+    }
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function loadLocalEnvFiles() {
+  const projectRoot = path.join(__dirname, '..');
+  const loaded = [];
+  for (const candidate of [
+    path.join(projectRoot, '.env'),
+    path.join(projectRoot, '.env.local'),
+  ]) {
+    if (loadEnvFileIntoProcess(candidate)) {
+      loaded.push(path.basename(candidate));
+    }
+  }
+  if (loaded.length > 0) {
+    console.log(`[Relay] Loaded environment from ${loaded.join(', ')}`);
+  }
+}
+
+loadLocalEnvFiles();
+
 function requireShared(name) {
   const candidates = [path.join(__dirname, '..', 'shared', name), path.join(__dirname, 'shared', name)];
   for (const p of candidates) { try { return require(p); } catch {} }
