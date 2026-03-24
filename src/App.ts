@@ -403,6 +403,8 @@ export class App {
       allNews: [],
       gdeltNewsItems: [],
       afpNewsItems: [],
+      socialSnapshot: null,
+      socialMonitorError: null,
       newsByCategory: {},
       latestMarkets: [],
       latestPredictions: [],
@@ -757,6 +759,14 @@ export class App {
   private setupRefreshIntervals(): void {
     // Always refresh news for all variants
     this.refreshScheduler.scheduleRefresh('news', () => this.dataLoader.loadNews(), REFRESH_INTERVALS.feeds);
+    if (SITE_VARIANT === 'renault') {
+      this.refreshScheduler.scheduleRefresh(
+        'social-monitor',
+        () => this.dataLoader.loadSocialMonitor(),
+        60 * 1_000,
+        () => this.isAnyPanelNearViewport(['social-feed', 'social-trends', 'social-authors'])
+      );
+    }
 
     // Happy variant only refreshes news -- skip all geopolitical/financial/military refreshes
     if (SITE_VARIANT !== 'happy') {

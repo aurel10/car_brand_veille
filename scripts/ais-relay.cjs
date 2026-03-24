@@ -17,6 +17,7 @@ const { readFileSync } = require('fs');
 const crypto = require('crypto');
 const v8 = require('v8');
 const { WebSocketServer, WebSocket } = require('ws');
+const { createSocialMonitorRelay } = require('./social-monitor-relay.cjs');
 
 const httpsKeepAliveAgent = new https.Agent({ keepAlive: true, maxSockets: 6, timeout: 60_000 });
 
@@ -118,6 +119,7 @@ let bigQueryAccessTokenExpiry = 0;
 let bigQueryAccessTokenPromise = null;
 const bigQueryResultCache = new Map();
 let aisDisabledLogged = false;
+const socialMonitorRelay = createSocialMonitorRelay();
 
 if (IS_PRODUCTION_RELAY && !RELAY_SHARED_SECRET && !ALLOW_UNAUTHENTICATED_RELAY) {
   console.error('[Relay] Error: RELAY_SHARED_SECRET is required in production');
@@ -4417,6 +4419,7 @@ function getRouteGroup(pathname) {
   if (pathname.startsWith('/worldbank')) return 'worldbank';
   if (pathname.startsWith('/polymarket')) return 'polymarket';
   if (pathname.startsWith('/brandwatch')) return 'brandwatch';
+  if (pathname.startsWith('/social-monitor')) return 'social-monitor';
   if (pathname.startsWith('/ucdp-events')) return 'ucdp-events';
   if (pathname.startsWith('/oref')) return 'oref';
   if (pathname === '/notam') return 'notam';
@@ -7460,6 +7463,7 @@ const server = http.createServer(async (req, res) => {
       brandwatch: {
         bigQuery: getBigQueryStatus(),
       },
+      socialMonitor: socialMonitorRelay.getHealthSummary(),
       rateLimit: {
         windowMs: RELAY_RATE_LIMIT_WINDOW_MS,
         defaultMax: RELAY_RATE_LIMIT_MAX,
@@ -7897,6 +7901,18 @@ const server = http.createServer(async (req, res) => {
     handleAviationStackRequest(req, res);
   } else if (pathname === '/brandwatch/query') {
     await handleBrandwatchQueryRequest(req, res);
+  } else if (pathname === '/social-monitor/v1/snapshot' && req.method === 'GET') {
+    return sendCompressed(req, res, 200, {
+      'Content-Type': 'application/json',
+      'Cache-Control': 'public, max-age=10',
+      'CDN-Cache-Control': 'public, max-age=10',
+    }, JSON.stringify(socialMonitorRelay.getSnapshot()));
+  } else if (pathname === '/social-monitor/v1/status' && req.method === 'GET') {
+    return sendCompressed(req, res, 200, {
+      'Content-Type': 'application/json',
+      'Cache-Control': 'public, max-age=10',
+      'CDN-Cache-Control': 'public, max-age=10',
+    }, JSON.stringify(socialMonitorRelay.getStatus()));
   } else if (pathname === '/widget-agent/health' && req.method === 'GET') {
     handleWidgetAgentHealthRequest(req, res);
   } else if (pathname === '/widget-agent' && req.method === 'POST') {
@@ -8515,7 +8531,7 @@ function connectUpstream() {
 const wss = new WebSocketServer({ server });
 
 server.listen(PORT, () => {
-  console.log(`[Relay] WebSocket relay on port ${PORT} (OpenSky: ${OPENSKY_PROXY_ENABLED ? 'via proxy' : 'direct'}, AIS: ${AISSTREAM_ENABLED ? 'enabled' : 'disabled'}, BigQuery: ${getBigQueryStatus().configured ? 'configured' : 'not configured'})`);
+  console.log(`[Relay] WebSocket relay on port ${PORT} (OpenSky: ${OPENSKY_PROXY_ENABLED ? 'via proxy' : 'direct'}, AIS: ${AISSTREAM_ENABLED ? 'enabled' : 'disabled'}, BigQuery: ${getBigQueryStatus().configured ? 'configured' : 'not configured'}, Social: enabled)`);
   startTelegramPollLoop();
   startOrefPollLoop();
   startUcdpSeedLoop();
@@ -8540,6 +8556,7 @@ server.listen(PORT, () => {
   startPortWatchSeedLoop();
   startCorridorRiskSeedLoop();
   startUsniFleetSeedLoop();
+  socialMonitorRelay.start();
 });
 
 wss.on('connection', (ws, req) => {

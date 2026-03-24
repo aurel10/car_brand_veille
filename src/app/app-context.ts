@@ -1,4 +1,4 @@
-import type { InternetOutage, SocialUnrestEvent, MilitaryFlight, MilitaryFlightCluster, MilitaryVessel, MilitaryVesselCluster, USNIFleetReport, PanelConfig, MapLayers, NewsItem, MarketData, ClusteredEvent, CyberThreat, Monitor } from '@/types';
+import type { InternetOutage, SocialUnrestEvent, MilitaryFlight, MilitaryFlightCluster, MilitaryVessel, MilitaryVesselCluster, USNIFleetReport, PanelConfig, MapLayers, NewsItem, MarketData, ClusteredEvent, CyberThreat, Monitor, SocialSnapshot } from '@/types';
 import type { AirportDelayAlert, PositionSample } from '@/services/aviation';
 import type { IranEvent } from '@/generated/client/worldmonitor/conflict/v1/service_client';
 import type { SanctionsPressureResult } from '@/services/sanctions-pressure';
@@ -41,6 +41,8 @@ export interface AppContext {
   allNews: NewsItem[];
   gdeltNewsItems: NewsItem[];
   afpNewsItems: NewsItem[];
+  socialSnapshot: SocialSnapshot | null;
+  socialMonitorError: string | null;
   newsByCategory: Record<string, NewsItem[]>;
   latestMarkets: MarketData[];
   latestPredictions: import('@/services/prediction').PredictionMarket[];

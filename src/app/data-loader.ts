@@ -125,6 +125,9 @@ import {
   WeakSignalsPanel,
   ThreatMatrixPanel,
   MentionTrendsPanel,
+  SocialFeedPanel,
+  SocialTrendsPanel,
+  SocialAuthorsPanel,
   RenaultChronologyScreen,
   InsightsPanel,
   CIIPanel,
@@ -151,6 +154,7 @@ import type { AfpWireScreenPanel } from '@/components/AfpWireScreenPanel';
 import type { CrisisSeverityPanel } from '@/components/CrisisSeverityPanel';
 import { fetchBrandwatchGdeltExecution } from '@/services/brandwatch/gdelt';
 import { loadBrandwatchQueries } from '@/services/brandwatch/store';
+import { buildSocialMonitorView, fetchSocialMonitorSnapshot } from '@/services/social-monitor';
 import { fetchRenewableInstallations } from '@/services/renewable-installations';
 import { filterBySentiment } from '@/services/sentiment-gate';
 import { fetchAllPositiveTopicIntelligence } from '@/services/gdelt-intel';
@@ -375,6 +379,10 @@ export class DataLoaderManager implements AppModule {
     const tasks: Array<{ name: string; task: Promise<void> }> = [
       { name: 'news', task: runGuarded('news', () => this.loadNews()) },
     ];
+
+    if (SITE_VARIANT === 'renault' && shouldLoadAny(['social-feed', 'social-trends', 'social-authors'])) {
+      tasks.push({ name: 'socialMonitor', task: runGuarded('socialMonitor', () => this.loadSocialMonitor()) });
+    }
 
     // Happy variant only loads news data -- skip all geopolitical/financial/military data
     if (SITE_VARIANT !== 'happy') {
@@ -2469,6 +2477,18 @@ export class DataLoaderManager implements AppModule {
     }
   }
 
+  async loadSocialMonitor(force = false): Promise<void> {
+    const socialFeedPanel = this.ctx.panels['social-feed'] as SocialFeedPanel | undefined;
+    const socialTrendsPanel = this.ctx.panels['social-trends'] as SocialTrendsPanel | undefined;
+    const socialAuthorsPanel = this.ctx.panels['social-authors'] as SocialAuthorsPanel | undefined;
+    if (!socialFeedPanel && !socialTrendsPanel && !socialAuthorsPanel) return;
+
+    const result = await fetchSocialMonitorSnapshot(force);
+    this.ctx.socialSnapshot = result.snapshot;
+    this.ctx.socialMonitorError = result.error ?? null;
+    this.updateMonitorResults();
+  }
+
   updateMonitorResults(): void {
     const renaultChronologyScreen = this.ctx.renaultChronologyScreen as RenaultChronologyScreen | null;
     renaultChronologyScreen?.update([...this.ctx.allNews, ...this.ctx.gdeltNewsItems, ...this.ctx.afpNewsItems]);
@@ -2482,9 +2502,21 @@ export class DataLoaderManager implements AppModule {
     const threatMatrixPanel = this.ctx.panels['threat-matrix'] as ThreatMatrixPanel | undefined;
     const mentionTrendsPanel = this.ctx.panels['mention-trends'] as MentionTrendsPanel | undefined;
     const crisisSeverityPanel = this.ctx.panels['crisis-severity'] as CrisisSeverityPanel | undefined;
+    const socialFeedPanel = this.ctx.panels['social-feed'] as SocialFeedPanel | undefined;
+    const socialTrendsPanel = this.ctx.panels['social-trends'] as SocialTrendsPanel | undefined;
+    const socialAuthorsPanel = this.ctx.panels['social-authors'] as SocialAuthorsPanel | undefined;
+
+    const socialView = buildSocialMonitorView(
+      this.ctx.socialSnapshot,
+      loadBrandwatchQueries(),
+      this.ctx.socialMonitorError,
+    );
+    socialFeedPanel?.update(socialView);
+    socialTrendsPanel?.update(socialView);
+    socialAuthorsPanel?.update(socialView);
 
     if (!brandwatchFeedPanel && !brandwatchQueriesPanel && !weakSignalsPanel && !threatMatrixPanel && !mentionTrendsPanel && !crisisSeverityPanel) {
-      return;
+      if (!socialFeedPanel && !socialTrendsPanel && !socialAuthorsPanel) return;
     }
 
     const snapshot = buildBrandwatchSnapshot([...this.ctx.allNews, ...this.ctx.afpNewsItems]);

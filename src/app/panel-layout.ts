@@ -18,6 +18,9 @@ import {
   WeakSignalsPanel,
   ThreatMatrixPanel,
   MentionTrendsPanel,
+  SocialFeedPanel,
+  SocialTrendsPanel,
+  SocialAuthorsPanel,
   RenaultChronologyScreen,
   AfpWireScreenPanel,
   EconomicPanel,
@@ -647,6 +650,9 @@ export class PanelLayoutManager implements AppModule {
     });
     this.createPanel('threat-matrix', () => new ThreatMatrixPanel());
     this.createPanel('mention-trends', () => new MentionTrendsPanel());
+    this.createPanel('social-feed', () => new SocialFeedPanel());
+    this.createPanel('social-trends', () => new SocialTrendsPanel());
+    this.createPanel('social-authors', () => new SocialAuthorsPanel());
 
     if (SITE_VARIANT === 'renault') {
       const chronologyHost = document.getElementById('renaultChronologyView');

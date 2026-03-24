@@ -674,6 +674,59 @@ export interface MentionTrendPoint {
   threatId?: string;
 }
 
+export type SocialPlatform = 'bluesky' | 'mastodon' | 'youtube' | 'reddit' | 'x';
+
+export interface SocialEngagementMetrics {
+  likes?: number;
+  replies?: number;
+  reposts?: number;
+  views?: number;
+  comments?: number;
+  score?: number;
+}
+
+export interface SocialPost {
+  id: string;
+  platform: SocialPlatform;
+  nativeId?: string;
+  url: string;
+  text: string;
+  authorName: string;
+  authorHandle?: string;
+  channelTitle?: string;
+  hashtags: string[];
+  publishedAt: string;
+  fetchedAt: string;
+  profileLocation?: string;
+  subreddit?: string;
+  instance?: string;
+  language?: string;
+  engagement?: SocialEngagementMetrics;
+  searchText?: string;
+}
+
+export interface SocialConnectorStatus {
+  platform: SocialPlatform;
+  enabled: boolean;
+  state: 'connected' | 'polling' | 'degraded' | 'disabled' | 'error' | 'idle';
+  detail?: string;
+  lastSuccessAt?: string | null;
+  lastErrorAt?: string | null;
+  lastError?: string | null;
+  lastItemAt?: string | null;
+  fetchedCount?: number;
+}
+
+export interface SocialSnapshot {
+  ok: boolean;
+  updatedAt: string | null;
+  windowHours: number;
+  totalPosts: number;
+  terms: string[];
+  statuses: SocialConnectorStatus[];
+  posts: SocialPost[];
+}
+
 export interface RenaultSite {
   id: string;
   entityId: string;

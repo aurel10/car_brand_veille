@@ -841,6 +841,9 @@ const RENAULT_PANELS: Record<string, PanelConfig> = {
   'brandwatch-queries': { name: 'Query Builder', enabled: true, priority: 1 },
   'threat-matrix': { name: 'Threat Matrix', enabled: true, priority: 1 },
   'mention-trends': { name: 'Mention Trends', enabled: true, priority: 1 },
+  'social-feed': { name: 'Social Feed', enabled: true, priority: 1 },
+  'social-trends': { name: 'Social Trends', enabled: true, priority: 1 },
+  'social-authors': { name: 'Social Authors & Platforms', enabled: true, priority: 1 },
   'crisis-severity': { name: 'Crisis Level', enabled: true, priority: 1 },
   alerts: { name: 'Global Alerts', enabled: true, priority: 2 },
   operations: { name: 'Operations & Plants', enabled: true, priority: 2 },
@@ -1144,7 +1147,7 @@ export const PANEL_CATEGORY_MAP: Record<string, { labelKey: string; panelKeys: s
 
   renaultCore: {
     labelKey: 'header.panelCatCore',
-    panelKeys: ['map', 'brandwatch-feed', 'weak-signals', 'brandwatch-queries', 'threat-matrix', 'mention-trends'],
+    panelKeys: ['map', 'brandwatch-feed', 'weak-signals', 'brandwatch-queries', 'threat-matrix', 'mention-trends', 'social-feed', 'social-trends', 'social-authors'],
     variants: ['renault'],
   },
   renaultNews: {
