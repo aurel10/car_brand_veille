@@ -26,6 +26,7 @@ export interface AfpArticle {
   country: string;
   product: string;
   abstract?: string;
+  body?: string;
 }
 
 export interface AfpQueryResult {

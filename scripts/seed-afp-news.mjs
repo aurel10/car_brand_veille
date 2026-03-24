@@ -274,6 +274,8 @@ function normalizeAfpArticle(doc) {
     country: doc.country || doc.countryname || '',
     product: String(doc.product || doc.class || 'text'),
     abstract: String(doc.abstract || ''),
+    // AFP stores full article paragraphs in the `news` array field
+    body: Array.isArray(doc.news) ? doc.news.join('\n\n') : String(doc.body || doc.content || doc.text || ''),
   };
 }
 

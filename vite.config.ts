@@ -452,18 +452,134 @@ const RSS_PROXY_ALLOWED_DOMAINS = new Set([
  * Dev-only plugin: serves /api/afp-direct by fetching AFP articles server-side.
  * Uses AFP credentials from .env.local (not exposed to browser).
  */
+/** Extract text content of the first matching XML tag (strips nested tags). */
+function _extractXmlText(xml: string, tag: string): string {
+  const m = xml.match(new RegExp(`<${tag}[^>]*>([\\s\\S]*?)<\\/${tag}>`, 'i'));
+  if (!m) return '';
+  return m[1]!.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+}
+
+/**
+ * Extract full body paragraphs from AFP NewsML XML.
+ * AFP uses <body.content> inside <nitf> or <inlineXML> with <p> tags.
+ */
+function _extractAfpBodyParagraphs(xml: string): string {
+  // Try to find body.content section
+  const bodySection = xml.match(/<body\.content[^>]*>([\s\S]*?)<\/body\.content>/i)?.[1]
+    ?? xml.match(/<body[^>]*>([\s\S]*?)<\/body>/i)?.[1]
+    ?? '';
+
+  if (!bodySection) return '';
+
+  const paragraphs: string[] = [];
+  const pRegex = /<p(?:\s[^>]*)?>([^]*?)<\/p>/gi;
+  let m: RegExpExecArray | null;
+  while ((m = pRegex.exec(bodySection)) !== null) {
+    const text = m[1]!
+      .replace(/<[^>]+>/g, ' ')       // strip inline tags
+      .replace(/&amp;/g, '&')
+      .replace(/&lt;/g, '<')
+      .replace(/&gt;/g, '>')
+      .replace(/&quot;/g, '"')
+      .replace(/&apos;/g, "'")
+      .replace(/&#(\d+);/g, (_, n) => String.fromCharCode(Number(n)))
+      .replace(/\s+/g, ' ')
+      .trim();
+    if (text) paragraphs.push(text);
+  }
+
+  return paragraphs.join('\n\n');
+}
+
 function afpDevPlugin(): Plugin {
   const AFP_API = 'https://afp-apicore-prod.afp.com';
   let cachedToken: { accessToken: string; expiresAt: number } | null = null;
   let cachedResult: { data: string; timestamp: number } | null = null;
   const CACHE_TTL = 10 * 60_000; // 10min cache
+  const articleCache = new Map<string, { body: string; title: string; timestamp: number }>();
+  const ARTICLE_CACHE_TTL = 60 * 60_000; // 1h for individual articles
+
+  async function ensureToken(clientId: string, clientSecret: string, username: string, password: string): Promise<string | null> {
+    if (!cachedToken || Date.now() >= cachedToken.expiresAt) {
+      const basicAuth = Buffer.from(`${clientId}:${clientSecret}`).toString('base64');
+      const tokenResp = await fetch(`${AFP_API}/oauth/token`, {
+        method: 'POST',
+        headers: { Authorization: `Basic ${basicAuth}`, 'Content-Type': 'application/x-www-form-urlencoded', Accept: 'application/json' },
+        body: new URLSearchParams({ grant_type: 'password', username, password }),
+        signal: AbortSignal.timeout(15_000),
+      });
+      if (!tokenResp.ok) return null;
+      const tokenData = await tokenResp.json() as { access_token: string; expires_in?: number };
+      cachedToken = { accessToken: tokenData.access_token, expiresAt: Date.now() + ((tokenData.expires_in || 3600) * 1000) - 60_000 };
+    }
+    return cachedToken.accessToken;
+  }
 
   return {
     name: 'afp-dev',
     apply: 'serve',
     configureServer(server) {
       server.middlewares.use(async (req, res, next) => {
-        if (req.url !== '/api/afp-direct') return next();
+        const url = req.url || '';
+
+        // ── /api/afp-article?uno={id}  ──────────────────────────────────────
+        if (url.startsWith('/api/afp-article')) {
+          const uno = new URL(url, 'http://localhost').searchParams.get('uno') || '';
+          if (!uno) { res.statusCode = 400; res.end('Missing uno'); return; }
+
+          // Serve from cache
+          const cached = articleCache.get(uno);
+          if (cached && Date.now() - cached.timestamp < ARTICLE_CACHE_TTL) {
+            res.statusCode = 200;
+            res.setHeader('Content-Type', 'application/json');
+            res.end(JSON.stringify({ body: cached.body, title: cached.title }));
+            return;
+          }
+
+          const clientId = (process.env.AFP_CLIENT_ID || '').trim();
+          const clientSecret = (process.env.AFP_CLIENT_SECRET || '').trim();
+          const username = (process.env.AFP_USERNAME || '').trim();
+          const password = (process.env.AFP_PASSWORD || '').trim();
+          if (!clientId || !clientSecret || !username || !password) {
+            res.statusCode = 200; res.setHeader('Content-Type', 'application/json'); res.end(JSON.stringify({ body: '', title: '' })); return;
+          }
+
+          try {
+            const token = await ensureToken(clientId, clientSecret, username, password);
+            if (!token) { res.statusCode = 200; res.setHeader('Content-Type', 'application/json'); res.end(JSON.stringify({ body: '', title: '' })); return; }
+
+            // Fetch full article via search with uno filter — `news` array contains all paragraphs
+            const searchBody = { query: { and: [{ name: 'uno', in: [uno] }] }, maxRows: '1' };
+            const searchResp = await fetch(`${AFP_API}/v1/api/search`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json', Accept: 'application/json', Authorization: `Bearer ${token}` },
+              body: JSON.stringify(searchBody),
+              signal: AbortSignal.timeout(15_000),
+            });
+
+            let bodyText = '';
+            let titleText = '';
+
+            if (searchResp.ok) {
+              const data = await searchResp.json() as { response?: { docs?: Array<Record<string, unknown>> } };
+              const doc = data.response?.docs?.[0] || {};
+              titleText = String(doc.title || doc.headline || '');
+              // `news` array contains all article paragraphs — the full body
+              bodyText = Array.isArray(doc.news)
+                ? (doc.news as string[]).join('\n\n')
+                : String(doc.body || doc.content || doc.abstract || '');
+            }
+
+            articleCache.set(uno, { body: bodyText, title: titleText, timestamp: Date.now() });
+            res.statusCode = 200; res.setHeader('Content-Type', 'application/json'); res.end(JSON.stringify({ body: bodyText, title: titleText }));
+          } catch (err: unknown) {
+            console.error('[afp-article]', err instanceof Error ? err.message : err);
+            res.statusCode = 200; res.setHeader('Content-Type', 'application/json'); res.end(JSON.stringify({ body: '', title: '' }));
+          }
+          return;
+        }
+
+        if (url !== '/api/afp-direct') return next();
 
         // Return cached if fresh
         if (cachedResult && Date.now() - cachedResult.timestamp < CACHE_TTL) {
@@ -486,21 +602,8 @@ function afpDevPlugin(): Plugin {
         }
 
         try {
-          // Get token
-          if (!cachedToken || Date.now() >= cachedToken.expiresAt) {
-            const basicAuth = Buffer.from(`${clientId}:${clientSecret}`).toString('base64');
-            const tokenResp = await fetch(`${AFP_API}/oauth/token`, {
-              method: 'POST',
-              headers: { Authorization: `Basic ${basicAuth}`, 'Content-Type': 'application/x-www-form-urlencoded', Accept: 'application/json' },
-              body: new URLSearchParams({ grant_type: 'password', username, password }),
-              signal: AbortSignal.timeout(15_000),
-            });
-            if (!tokenResp.ok) throw new Error(`AFP auth failed: ${tokenResp.status}`);
-            const tokenData = await tokenResp.json() as { access_token: string; expires_in?: number };
-            cachedToken = { accessToken: tokenData.access_token, expiresAt: Date.now() + ((tokenData.expires_in || 3600) * 1000) - 60_000 };
-          }
-
-          const token = cachedToken.accessToken;
+          const token = await ensureToken(clientId, clientSecret, username, password);
+          if (!token) throw new Error('AFP auth failed');
           const queries = [
             { id: 'afp-sentiment-all', category: 'sentiment', priority: 'medium', label: 'All Renault coverage',
               query: { and: [{ name: 'class', and: ['text'] }, { name: 'entity_company', and: ['Renault'] }] },
@@ -542,6 +645,8 @@ function afpDevPlugin(): Plugin {
                   afpId: String(doc.uno || doc.guid || ''),
                   country: String(doc.country || ''), product: String(doc.product || 'text'),
                   abstract: String(doc.abstract || ''),
+                  // AFP stores full article paragraphs in the `news` array field
+                  body: Array.isArray(doc.news) ? (doc.news as string[]).join('\n\n') : String((doc as Record<string, unknown>).body || (doc as Record<string, unknown>).content || ''),
                 };
               }).filter(Boolean);
               results.push({ id: q.id, category: q.category, priority: q.priority, label: q.label, lang: q.lang || '', articles, articleCount: articles.length, fetchedAt: new Date().toISOString() });
