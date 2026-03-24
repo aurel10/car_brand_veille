@@ -51,6 +51,75 @@ const THREAT_RANK: Record<ThreatLevel, number> = {
   info: 1,
 };
 
+const SECONDARY_RENAULT_TERMS = [
+  'clio',
+  'megane',
+  'captur',
+  'austral',
+  'symbioz',
+  'twingo',
+  'kangoo',
+  'trafic',
+  'sandero',
+  'duster',
+  'jogger',
+  'bigster',
+  'logan',
+  'dokker',
+  'a110',
+  'a290',
+  'a390',
+];
+
+const AUTOMOTIVE_CONTEXT_TERMS = [
+  'renault',
+  'dacia',
+  'alpine',
+  'vehicle',
+  'vehicles',
+  'car',
+  'cars',
+  'automotive',
+  'battery',
+  'electric',
+  'ev',
+  'hybrid',
+  'model',
+  'production',
+  'factory',
+  'plant',
+  'dealer',
+  'recall',
+  'sales',
+];
+
+const ALPINE_CONTEXT_TERMS = [
+  'renault',
+  'car',
+  'cars',
+  'automotive',
+  'vehicle',
+  'vehicles',
+  'motor',
+  'motorsport',
+  'formula 1',
+  'f1',
+  'grand prix',
+  'e-tech',
+  'electric',
+  'dealership',
+  'showroom',
+  'recall',
+  'production',
+  'factory',
+  'a110',
+  'a290',
+  'a390',
+  'bwt alpine',
+  'alpine racing',
+  'alpine team',
+];
+
 function escapeRegex(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
@@ -62,12 +131,23 @@ function matchKeyword(text: string, keyword: string): boolean {
   return regex.test(text);
 }
 
+function entityMatchesText(entity: TrackedEntity, text: string): boolean {
+  const terms = [entity.name, ...entity.aliases, ...(entity.keywords ?? [])].filter(Boolean);
+  if (entity.id !== 'alpine') {
+    return terms.some((keyword) => matchKeyword(text, keyword));
+  }
+
+  const specificTerms = terms.filter((term) => term.toLowerCase() !== 'alpine');
+  if (specificTerms.some((keyword) => matchKeyword(text, keyword))) {
+    return true;
+  }
+
+  return matchKeyword(text, 'alpine')
+    && ALPINE_CONTEXT_TERMS.some((keyword) => matchKeyword(text, keyword));
+}
+
 function matchEntities(text: string): TrackedEntity[] {
-  return RENAULT_TRACKED_ENTITIES.filter((entity) => (
-    [entity.name, ...entity.aliases, ...(entity.keywords ?? [])]
-      .filter(Boolean)
-      .some((keyword) => matchKeyword(text, keyword))
-  ));
+  return RENAULT_TRACKED_ENTITIES.filter((entity) => entityMatchesText(entity, text));
 }
 
 export function getMatchedRenaultEntitiesForItem(item: NewsItem): TrackedEntity[] {
@@ -75,8 +155,14 @@ export function getMatchedRenaultEntitiesForItem(item: NewsItem): TrackedEntity[
   return matchEntities(text);
 }
 
+function hasSecondaryRenaultContext(text: string): boolean {
+  return SECONDARY_RENAULT_TERMS.some((term) => matchKeyword(text, term))
+    && AUTOMOTIVE_CONTEXT_TERMS.some((term) => matchKeyword(text, term));
+}
+
 export function isRenaultRelevantNewsItem(item: NewsItem): boolean {
-  return getMatchedRenaultEntitiesForItem(item).length > 0;
+  const text = [item.title, item.source, item.locationName, item.searchText].filter(Boolean).join(' ').toLowerCase();
+  return getMatchedRenaultEntitiesForItem(item).length > 0 || hasSecondaryRenaultContext(text);
 }
 
 function matchThreatFields(text: string): ThreatField[] {

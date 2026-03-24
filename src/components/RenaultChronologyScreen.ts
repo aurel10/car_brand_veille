@@ -4,7 +4,7 @@ import { formatTime } from '@/utils';
 import { sanitizeUrl } from '@/utils/sanitize';
 import { h, replaceChildren } from '@/utils/dom-utils';
 import { getThreatColor } from '@/services/threat-classifier';
-import { getMatchedRenaultEntitiesForItem } from '@/services/brandwatch/engine';
+import { getMatchedRenaultEntitiesForItem, isRenaultRelevantNewsItem } from '@/services/brandwatch/engine';
 
 function dedupeNewsItems(items: NewsItem[]): NewsItem[] {
   const seen = new Set<string>();
@@ -59,8 +59,10 @@ function matchesContextTerm(text: string, term: string): boolean {
 }
 
 function isRelevantToRenaultWire(item: NewsItem): boolean {
+  if (!isRenaultRelevantNewsItem(item)) return false;
+
   const entities = getMatchedRenaultEntitiesForItem(item);
-  if (entities.length === 0) return false;
+  if (entities.length === 0) return true;
 
   const entityIds = new Set(entities.map((entity) => entity.id));
   if (!entityIds.has('alpine')) return true;
