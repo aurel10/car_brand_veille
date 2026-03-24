@@ -11,6 +11,7 @@ import { parseFeedDateOrNow } from './feed-date';
 import { canQueueAiClassification, AI_CLASSIFY_MAX_PER_FEED } from './ai-classify-queue';
 import { mlWorker } from './ml-worker';
 import { isHeadlineMemoryEnabled } from './ai-flow-settings';
+import { normalizeFeedItemMetadata } from './rss-source';
 
 const FEED_COOLDOWN_MS = 5 * 60 * 1000;
 const MAX_FAILURES = 2;
@@ -240,10 +241,10 @@ export async function fetchFeed(feed: Feed): Promise<NewsItem[]> {
     if (isAtom) items = doc.querySelectorAll('entry');
 
     const perFeedLimit = SITE_VARIANT === 'renault' ? 10 : 5;
-    const parsed = Array.from(items)
+    const parsed: NewsItem[] = Array.from(items)
       .slice(0, perFeedLimit)
-      .map((item) => {
-        const title = item.querySelector('title')?.textContent || '';
+      .flatMap((item) => {
+        const rawTitle = item.querySelector('title')?.textContent || '';
         let link = '';
         if (isAtom) {
           const linkEl = item.querySelector('link[href]');
@@ -256,13 +257,24 @@ export async function fetchFeed(feed: Feed): Promise<NewsItem[]> {
           ? (item.querySelector('published')?.textContent || item.querySelector('updated')?.textContent || '')
           : (item.querySelector('pubDate')?.textContent || '');
         const pubDate = parseFeedDateOrNow(pubDateStr);
+        const itemSourceEl = item.querySelector('source');
+        const { source, title } = normalizeFeedItemMetadata({
+          feedName: feed.name,
+          feedUrl: url,
+          title: rawTitle,
+          link,
+          sourceText: itemSourceEl?.textContent || null,
+          sourceUrl: itemSourceEl?.getAttribute('url') || null,
+          description: item.querySelector('description')?.textContent || null,
+        });
+        if (!source) return [];
         const threat = classifyByKeyword(title, SITE_VARIANT);
         const isAlert = threat.level === 'critical' || threat.level === 'high';
         const geoMatches = inferGeoHubsFromTitle(title);
         const topGeo = geoMatches[0];
 
-        return {
-          source: feed.name,
+        return [{
+          source,
           title,
           link,
           pubDate,
@@ -271,7 +283,7 @@ export async function fetchFeed(feed: Feed): Promise<NewsItem[]> {
           ...(topGeo && { lat: topGeo.hub.lat, lon: topGeo.hub.lon, locationName: topGeo.hub.name }),
           lang: feed.lang,
           ...(SITE_VARIANT === 'happy' && { imageUrl: extractImageUrl(item) }),
-        };
+        }];
       });
 
     feedCache.set(feedScope, { items: parsed, timestamp: Date.now() });
@@ -295,7 +307,7 @@ export async function fetchFeed(feed: Feed): Promise<NewsItem[]> {
     }
 
     const aiCandidates = parsed
-      .filter(item => item.threat.source === 'keyword')
+      .filter((item): item is NewsItem & { threat: NonNullable<NewsItem['threat']> } => item.threat?.source === 'keyword')
       .sort((a, b) => b.pubDate.getTime() - a.pubDate.getTime())
       .slice(0, AI_CLASSIFY_MAX_PER_FEED);
 
